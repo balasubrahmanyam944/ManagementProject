@@ -67,7 +67,7 @@ const nextConfig: NextConfig = {
     productionBrowserSourceMaps: false, // Disable source maps in production for security
     poweredByHeader: false, // Remove X-Powered-By header
     // Optimize output
-    output: 'standalone', // Create standalone build for Docker
+    // output: 'standalone', // Create standalone build for Docker
     // Enable React strict mode in production
     reactStrictMode: true,
   }),

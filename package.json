@@ -14,7 +14,7 @@
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
     "test:webhooks": "npx tsx src/__tests__/webhook-flow.test.ts",
-    "render:start": "node .next/standalone/server.js"
+    "render:start": "cross-env NODE_ENV=production node server.render.js"
   },
   "engines": {
     "node": ">=20.0.0"
