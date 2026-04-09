@@ -1,0 +1,95 @@
+# Production Dockerfile - Multi-stage build for optimized image size
+FROM node:20-slim AS base
+
+# Install dependencies only when needed
+FROM base AS deps
+WORKDIR /app
+
+# Copy package files
+COPY package*.json ./
+# Install dependencies with retry logic for network issues
+RUN set -eux; \
+    for i in 1 2 3; do \
+        npm ci --only=production && break || \
+        (echo "Attempt $i failed, retrying..." && sleep $((i * 2))); \
+    done || (echo "npm ci failed after 3 attempts" && exit 1); \
+    npm cache clean --force
+
+# Rebuild the source code only when needed
+FROM base AS builder
+WORKDIR /app
+
+# Install build tools required for native modules (sqlite3, etc.)
+RUN apt-get update && \
+    apt-get install -y python3 make g++ && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
+
+# Copy package files
+COPY package*.json ./
+# Install all dependencies (including devDependencies for build) with retry logic
+# Configure npm for better reliability
+RUN npm config set fetch-retries 5 && \
+    npm config set fetch-retry-mintimeout 20000 && \
+    npm config set fetch-retry-maxtimeout 120000 && \
+    npm config set fetch-timeout 300000 && \
+    set -eux; \
+    for i in 1 2 3; do \
+        npm ci && break || \
+        (echo "Attempt $i failed, retrying..." && sleep $((i * 2))); \
+    done || (echo "npm ci failed after 3 attempts" && exit 1)
+
+# Copy source code
+COPY . .
+
+# Accept build argument for tenant basePath
+ARG NEXT_PUBLIC_TENANT_BASEPATH
+ENV NEXT_PUBLIC_TENANT_BASEPATH=${NEXT_PUBLIC_TENANT_BASEPATH}
+
+# Build the application with the basePath set
+# Add retry logic and increase memory limit for Next.js build
+RUN set -eux; \
+    NODE_OPTIONS="--max-old-space-size=4096" && \
+    for i in 1 2 3; do \
+        npm run build && break || \
+        (echo "Build attempt $i failed, retrying..." && sleep $((i * 3))); \
+    done || (echo "npm run build failed after 3 attempts" && exit 1)
+
+# Production image, copy all the files and run next
+FROM base AS runner
+WORKDIR /app
+
+ENV NODE_ENV=production
+ENV NEXT_TELEMETRY_DISABLED=1
+
+# Create non-root user for security
+RUN addgroup --system --gid 1001 nodejs && \
+    adduser --system --uid 1001 nextjs
+
+# Copy necessary files from builder
+# Standalone output includes node_modules and .next files
+COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
+COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+COPY --from=builder --chown=nextjs:nodejs /app/public ./public
+
+# Copy custom production HTTPS server wrapper
+# This wraps the Next.js standalone server with HTTPS support
+COPY --from=builder --chown=nextjs:nodejs /app/server.prod.js ./server.prod.js
+
+# Rename standalone server.js to server.standalone.js to avoid conflicts
+RUN mv ./server.js ./server.standalone.js 2>/dev/null || true
+
+# Note: SSL certificates are mounted as volumes in docker-compose.yml
+# They will be available at /app/localhost+4.pem and /app/localhost+4-key.pem
+
+USER nextjs
+
+EXPOSE 9003
+
+ENV PORT=9003
+ENV HOSTNAME="0.0.0.0"
+
+# Use the production HTTPS server wrapper
+# Override npm start to use server.prod.js
+CMD ["node", "server.prod.js"]
+

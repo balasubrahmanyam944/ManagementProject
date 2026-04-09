@@ -1,0 +1,61 @@
+services:
+  upmy-gmail:
+    build:
+      context: D:/Balu/GitHub/DevSrcSubbaRao/UPMY
+      dockerfile: D:/Balu/GitHub/DevSrcSubbaRao/UPMY/https-setup/Dockerfile.prod
+      target: runner
+      args:
+        - NEXT_PUBLIC_TENANT_BASEPATH=/gmail
+    container_name: upmy-gmail
+    ports:
+      - "9005:9003"
+    # Load Nango and other config from project .env file
+    env_file:
+      - D:/Balu/GitHub/DevSrcSubbaRao/UPMY/.env
+    environment:
+      - NODE_ENV=production
+      - DATABASE_URL=mongodb://mongo:27017/upmy_gmail
+      - NEXTAUTH_URL=https://172.16.34.47:9005/gmail
+      - NEXTAUTH_SECRET=replace_this_with_secure_secret
+      - APP_URL=https://172.16.34.47:9005/gmail
+      - NEXT_PUBLIC_APP_URL=https://172.16.34.47:9005/gmail
+      - NEXT_PUBLIC_TENANT_BASEPATH=/gmail
+      - NEXT_PUBLIC_HOST_IP=172.16.34.47
+      - JIRA_OAUTH_REDIRECT_URI=https://172.16.34.47:9003/api/oauth-router/jira/callback
+      - NANGO_SERVER_URL=https://irremovable-overexuberantly-jaxen.ngrok-free.dev
+      - NEXT_PUBLIC_NANGO_SERVER_URL=https://irremovable-overexuberantly-jaxen.ngrok-free.dev
+      - NEXT_PUBLIC_NANGO_PROXY_URL=https://irremovable-overexuberantly-jaxen.ngrok-free.dev
+      - NANGO_SECRET_KEY=2fcce571-d647-4102-9b22-27264a6b2eb3
+      - NEXT_PUBLIC_NANGO_PUBLIC_KEY=ae0757c4-81a5-4faa-82ee-dcd8498f10a5
+      - NANGO_ENCRYPTION_KEY=tBm9WHU2FZ7SRRW0zw00LhyB1nqYpU4D
+      - EMAIL_SERVER_HOST=smtp.gmail.com
+      - EMAIL_SERVER_PORT=587
+      - EMAIL_SERVER_USER=balu.suntech@gmail.com
+      - EMAIL_SERVER_PASSWORD=fbkxprjxprsxyigl
+      - EMAIL_FROM=Mail Verification <balu.suntech@gmail.com>
+      - USE_DIRECT_EMAIL=true
+    depends_on:
+      - mongo
+    networks:
+      - upmy-gmail-network
+    volumes:
+      - "D:/Balu/GitHub/DevSrcSubbaRao/UPMY/https-setup/localhost+4.pem:/app/localhost+4.pem:ro"
+      - "D:/Balu/GitHub/DevSrcSubbaRao/UPMY/https-setup/localhost+4-key.pem:/app/localhost+4-key.pem:ro"
+
+  mongo:
+    image: mongo
+    container_name: mongo-gmail
+    ports:
+      - "27019:27017"
+    volumes:
+      - mongo_gmail_data:/data/db
+    networks:
+      - upmy-gmail-network
+
+networks:
+  upmy-gmail-network:
+    driver: bridge
+
+volumes:
+  mongo_gmail_data:
+    name: mongo_gmail_data

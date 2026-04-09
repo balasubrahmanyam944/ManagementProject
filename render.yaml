@@ -1,0 +1,36 @@
+services:
+  - type: web
+    name: upmy-kanban-board
+    runtime: node
+    plan: free # Change to paid plan if you need more resources or custom disk
+    buildCommand: npm install && npm run build
+    startCommand: npm run render:start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        sync: false # User must provide their MongoDB Atlas URL
+      - key: NEXTAUTH_SECRET
+        generateValue: true
+      - key: NEXTAUTH_URL
+        sync: false # e.g., https://your-app-name.onrender.com
+      - key: GOOGLE_GENAI_API_KEY
+        sync: false
+      - key: NANGO_SECRET_KEY
+        sync: false
+      - key: NEXT_PUBLIC_NANGO_PUBLIC_KEY
+        sync: false
+      - key: NANGO_ENCRYPTION_KEY
+        sync: false
+      - key: EMAIL_SERVER_HOST
+        sync: false
+      - key: EMAIL_SERVER_PORT
+        sync: false
+      - key: EMAIL_SERVER_USER
+        sync: false
+      - key: EMAIL_SERVER_PASSWORD
+        sync: false
+      - key: EMAIL_FROM
+        sync: false
+      - key: NEXT_PUBLIC_TENANT_BASEPATH
+        value: "/portfolio" # Default tenant path for your portfolio

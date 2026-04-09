@@ -1,0 +1,64 @@
+# Nango Integrations Configuration
+# 
+# This file contains the OAuth credentials and scopes for each integration.
+# For self-hosted Nango, you can use this as a reference or configure
+# integrations via the Nango dashboard or API.
+
+integrations:
+  # Jira Integration
+  - provider: jira
+    unique_key: jira
+    name: Jira
+    description: Atlassian Jira for issue tracking and project management
+    oauth_client_id: ${JIRA_OAUTH_CLIENT_ID}
+    oauth_client_secret: ${JIRA_OAUTH_CLIENT_SECRET}
+    oauth_scopes: read:jira-work write:jira-work manage:jira-project read:jira-user offline_access
+    oauth_base_url: https://auth.atlassian.com
+    oauth_token_url: https://auth.atlassian.com/oauth/token
+    oauth_authorize_url: https://auth.atlassian.com/authorize
+    # Required scopes explained:
+    # - read:jira-work: Read issues, projects, boards
+    # - write:jira-work: Create and update issues
+    # - manage:jira-project: Manage project settings
+    # - read:jira-user: Read user information
+    # - offline_access: Get refresh token for automatic token refresh
+
+  # Trello Integration
+  - provider: trello
+    unique_key: trello
+    name: Trello
+    description: Trello for board and card management
+    oauth_client_id: ${TRELLO_API_KEY}
+    oauth_client_secret: ${TRELLO_API_SECRET}
+    oauth_scopes: read,write
+    oauth_base_url: https://trello.com/1
+    oauth_token_url: https://trello.com/1/OAuthGetAccessToken
+    oauth_authorize_url: https://trello.com/1/OAuthAuthorizeToken
+    # Required scopes explained:
+    # - read: Read boards, cards, lists
+    # - write: Create and update cards, lists, boards
+
+  # Slack Integration
+  - provider: slack
+    unique_key: slack
+    name: Slack
+    description: Slack for team communication and channel management
+    oauth_client_id: ${SLACK_CLIENT_ID}
+    oauth_client_secret: ${SLACK_CLIENT_SECRET}
+    oauth_scopes: channels:read channels:history chat:write users:read team:read
+    oauth_base_url: https://slack.com/api
+    oauth_token_url: https://slack.com/api/oauth.v2.access
+    oauth_authorize_url: https://slack.com/oauth/v2/authorize
+    # Required scopes explained:
+    # - channels:read: Read channel information
+    # - channels:history: Read channel messages
+    # - chat:write: Send messages to channels
+    # - users:read: Read user information
+    # - team:read: Read workspace/team information
+
+# Note: For self-hosted Nango, configure these via:
+# 1. Nango Dashboard UI (if available)
+# 2. Nango Admin API
+# 3. Environment variables in docker-compose.yml
+# 4. Or use the configure-nango-integrations.ts script
+

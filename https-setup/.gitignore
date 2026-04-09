@@ -1,0 +1,25 @@
+# HTTPS Setup - Git Ignore
+# Note: Most files in this directory SHOULD be committed for portability
+# Only exclude these if you have security concerns:
+
+# Uncomment these lines if you don't want to commit certificates:
+# *.pem
+# *.key
+
+# Uncomment if you don't want to commit the executable:
+# mkcert.exe
+# mkcert
+
+# Temporary files
+*.tmp
+*.log
+
+# OS specific files
+.DS_Store
+Thumbs.db
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo 

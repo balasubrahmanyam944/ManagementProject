@@ -1,0 +1,354 @@
+[2026-02-25T10:02:33.468Z] Starting build for tenant: gmail
+#0 building with "desktop-linux" instance using docker driver
+
+#1 [upmy-gmail internal] load build definition from Dockerfile.prod
+#1 transferring dockerfile: 3.16kB 0.0s done
+#1 DONE 0.1s
+
+#2 [upmy-gmail internal] load metadata for docker.io/library/node:20-slim
+#2 DONE 5.5s
+
+#3 [upmy-gmail internal] load .dockerignore
+#3 transferring context: 95B done
+#3 DONE 0.0s
+
+#4 [upmy-gmail base 1/1] FROM docker.io/library/node:20-slim@sha256:d8a35d586fad3af7abb6fdb9ba972388395405f4d462da9e4a4ddcde67b5e0fb
+#4 resolve docker.io/library/node:20-slim@sha256:d8a35d586fad3af7abb6fdb9ba972388395405f4d462da9e4a4ddcde67b5e0fb 0.0s done
+#4 DONE 0.0s
+
+#5 [upmy-gmail internal] load build context
+#5 transferring context: 1.10MB 0.2s done
+#5 DONE 0.2s
+
+#6 [upmy-gmail builder 1/6] WORKDIR /app
+#6 CACHED
+
+#7 [upmy-gmail builder 2/6] RUN apt-get update &&     apt-get install -y python3 make g++ &&     apt-get clean &&     rm -rf /var/lib/apt/lists/*
+#7 CACHED
+
+#8 [upmy-gmail builder 3/6] COPY package*.json ./
+#8 CACHED
+
+#9 [upmy-gmail builder 4/6] RUN npm config set fetch-retries 5 &&     npm config set fetch-retry-mintimeout 20000 &&     npm config set fetch-retry-maxtimeout 120000 &&     npm config set fetch-timeout 300000 &&     set -eux;     for i in 1 2 3; do         npm ci && break ||         (echo "Attempt $i failed, retrying..." && sleep $((i * 2)));     done || (echo "npm ci failed after 3 attempts" && exit 1)
+#9 CACHED
+
+#10 [upmy-gmail builder 5/6] COPY . .
+#10 DONE 0.6s
+
+#11 [upmy-gmail builder 6/6] RUN set -eux;     NODE_OPTIONS="--max-old-space-size=4096" &&     for i in 1 2 3; do         npm run build && break ||         (echo "Build attempt $i failed, retrying..." && sleep $((i * 3)));     done || (echo "npm run build failed after 3 attempts" && exit 1)
+#11 0.233 + NODE_OPTIONS=--max-old-space-size=4096
+#11 0.233 + npm run build
+#11 0.403 
+#11 0.403 > nextn@0.1.0 build
+#11 0.403 > cross-env NODE_ENV=production next build
+#11 0.403 
+#11 0.982 Attention: Next.js now collects completely anonymous telemetry regarding usage.
+#11 0.983 This information is used to shape Next.js' roadmap and prioritize features.
+#11 0.983 You can learn more, including how to opt-out if you'd not like to participate in this anonymous program, by visiting the following URL:
+#11 0.983 https://nextjs.org/telemetry
+#11 0.983 
+#11 1.047    ▲ Next.js 15.3.3
+#11 1.047    - Environments: .env.local, .env
+#11 1.047 
+#11 1.064    Creating an optimized production build ...
+#11 26.37  ⚠ Compiled with warnings in 24.0s
+#11 26.37 
+#11 26.37 ./node_modules/@opentelemetry/instrumentation/build/esm/platform/node/instrumentation.js
+#11 26.37 Critical dependency: the request of a dependency is an expression
+#11 26.37 
+#11 26.37 Import trace for requested module:
+#11 26.37 ./node_modules/@opentelemetry/instrumentation/build/esm/platform/node/instrumentation.js
+#11 26.37 ./node_modules/@opentelemetry/instrumentation/build/esm/platform/node/index.js
+#11 26.37 ./node_modules/@opentelemetry/instrumentation/build/esm/platform/index.js
+#11 26.37 ./node_modules/@opentelemetry/instrumentation/build/esm/index.js
+#11 26.37 ./node_modules/@opentelemetry/sdk-node/build/src/sdk.js
+#11 26.37 ./node_modules/@opentelemetry/sdk-node/build/src/index.js
+#11 26.37 ./node_modules/@genkit-ai/core/lib/tracing.js
+#11 26.37 ./node_modules/@genkit-ai/ai/lib/chat.js
+#11 26.37 ./node_modules/genkit/lib/common.js
+#11 26.37 ./node_modules/genkit/lib/index.mjs
+#11 26.37 ./src/app/[tenant]/api/integrations/slack/mentions-analysis/route.ts
+#11 26.37 
+#11 26.38    Skipping validation of types
+#11 26.38    Skipping linting
+#11 26.57    Collecting page data ...
+#11 27.48 ✅ Email service configured with SMTP
+#11 27.48 📧 SMTP Config: {
+#11 27.48   service: 'gmail',
+#11 27.48   host: 'smtp.gmail.com',
+#11 27.48   port: '587',
+#11 27.48   user: 'balu.suntech@gmail.com',
+#11 27.48   secure: false
+#11 27.48 }
+#11 27.48 ✅ Email service configured with SMTP
+#11 27.48 📧 SMTP Config: {
+#11 27.48   service: 'gmail',
+#11 27.48   host: 'smtp.gmail.com',
+#11 27.48   port: '587',
+#11 27.48   user: 'balu.suntech@gmail.com',
+#11 27.48   secure: false
+#11 27.48 }
+#11 27.49 ✅ Email service configured with SMTP
+#11 27.49 📧 SMTP Config: {
+#11 27.49   service: 'gmail',
+#11 27.49   host: 'smtp.gmail.com',
+#11 27.49   port: '587',
+#11 27.49   user: 'balu.suntech@gmail.com',
+#11 27.49   secure: false
+#11 27.49 }
+#11 32.24    Generating static pages (0/108) ...
+#11 32.78    Generating static pages (27/108) 
+#11 32.81 ✅ Email service configured with SMTP
+#11 32.81 📧 SMTP Config: {
+#11 32.81   service: 'gmail',
+#11 32.81   host: 'smtp.gmail.com',
+#11 32.81   port: '587',
+#11 32.81   user: 'balu.suntech@gmail.com',
+#11 32.81   secure: false
+#11 32.81 }
+#11 32.85    Generating static pages (54/108) 
+#11 32.87    Generating static pages (81/108) 
+#11 33.24  ✓ Generating static pages (108/108)
+#11 33.41 Shutting down all Genkit servers...
+#11 34.06    Finalizing page optimization ...
+#11 34.06    Collecting build traces ...
+#11 34.13 Shutting down all Genkit servers...
+#11 34.13 Shutting down all Genkit servers...
+#11 34.13 Shutting down all Genkit servers...
+#11 44.21 
+#11 44.22 Route (app)                                                        Size  First Load JS
+#11 44.22 ┌ ○ /                                                           1.39 kB         120 kB
+#11 44.22 ├ ○ /_not-found                                                   990 B         103 kB
+#11 44.22 ├ ƒ /[tenant]/api/admin/delete-user                               432 B         102 kB
+#11 44.22 ├ ƒ /[tenant]/api/admin/list-users                                432 B         102 kB
+#11 44.22 ├ ƒ /[tenant]/api/admin/update-existing-users                     432 B         102 kB
+#11 44.22 ├ ƒ /[tenant]/api/admin/update-user                               432 B         102 kB
+#11 44.22 ├ ƒ /[tenant]/api/auth/[...nextauth]                              432 B         102 kB
+#11 44.22 ├ ƒ /[tenant]/api/auth/jira/start                                 432 B         102 kB
+#11 44.22 ├ ƒ /[tenant]/api/board/create-card                               432 B         102 kB
+#11 44.22 ├ ƒ /[tenant]/api/column-mappings                                 432 B         102 kB
+#11 44.22 ├ ƒ /[tenant]/api/custom-boards                                   432 B         102 kB
+#11 44.22 ├ ƒ /[tenant]/api/custom-boards/activities                        432 B         102 kB
+#11 44.22 ├ ƒ /[tenant]/api/custom-boards/cards                             432 B         102 kB
+#11 44.22 ├ ƒ /[tenant]/api/custom-boards/performance                       432 B         102 kB
+#11 44.22 ├ ƒ /[tenant]/api/custom-boards/sprints                           432 B         102 kB
+#11 44.22 ├ ƒ /[tenant]/api/custom-boards/users                             432 B         102 kB
+#11 44.22 ├ ƒ /[tenant]/api/dependencies                                    432 B         102 kB
+#11 44.22 ├ ƒ /[tenant]/api/integrations/jira/issue                         432 B         102 kB
+#11 44.22 ├ ƒ /[tenant]/api/integrations/jira/transitions                   432 B         102 kB
+#11 44.22 ├ ƒ /[tenant]/api/integrations/refresh-analytics                  432 B         102 kB
+#11 44.22 ├ ƒ /[tenant]/api/integrations/slack/mentions                     432 B         102 kB
+#11 44.22 ├ ƒ /[tenant]/api/integrations/slack/mentions-analysis            432 B         102 kB
+#11 44.22 ├ ƒ /[tenant]/api/integrations/status                             432 B         102 kB
+#11 44.22 ├ ƒ /[tenant]/api/integrations/testrail/connect                   432 B         102 kB
+#11 44.22 ├ ƒ /[tenant]/api/integrations/trello/cards/move                  432 B         102 kB
+#11 44.22 ├ ƒ /[tenant]/api/oauth-callback/jira                             432 B         102 kB
+#11 44.22 ├ ƒ /[tenant]/api/oauth-callback/slack                            432 B         102 kB
+#11 44.22 ├ ƒ /[tenant]/api/oauth-callback/trello                           432 B         102 kB
+#11 44.22 ├ ƒ /[tenant]/api/shared/project                                  432 B         102 kB
+#11 44.22 ├ ƒ /[tenant]/api/testcases/delete                                432 B         102 kB
+#11 44.22 ├ ƒ /[tenant]/api/testcases/extract-pdf                           432 B         102 kB
+#11 44.22 ├ ƒ /[tenant]/api/testcases/list                                  432 B         102 kB
+#11 44.22 ├ ƒ /[tenant]/api/testcases/send-to-jira                          432 B         102 kB
+#11 44.22 ├ ƒ /[tenant]/api/testcases/send-to-testrail                      432 B         102 kB
+#11 44.22 ├ ƒ /[tenant]/api/testcases/send-to-trello                        432 B         102 kB
+#11 44.22 ├ ƒ /[tenant]/api/user/profile                                    432 B         102 kB
+#11 44.22 ├ ƒ /[tenant]/api/webhooks/events                                 432 B         102 kB
+#11 44.22 ├ ƒ /[tenant]/api/webhooks/jira                                   432 B         102 kB
+#11 44.22 ├ ƒ /[tenant]/api/webhooks/manage                                 432 B         102 kB
+#11 44.22 ├ ƒ /[tenant]/api/webhooks/polling/start                          432 B         102 kB
+#11 44.22 ├ ƒ /[tenant]/api/webhooks/status                                 432 B         102 kB
+#11 44.22 ├ ƒ /[tenant]/api/webhooks/test                                   432 B         102 kB
+#11 44.22 ├ ƒ /[tenant]/api/webhooks/trello                                 432 B         102 kB
+#11 44.22 ├ ƒ /[tenant]/api/webhooks/trello-polling/start                   432 B         102 kB
+#11 44.22 ├ ƒ /[tenant]/auth/signin                                       6.43 kB         129 kB
+#11 44.22 ├ ƒ /[tenant]/board                                             10.6 kB         213 kB
+#11 44.22 ├ ƒ /[tenant]/communication-overview                            4.49 kB         133 kB
+#11 44.22 ├ ƒ /[tenant]/communication-overview/slack/analyze/[channelId]  4.31 kB         117 kB
+#11 44.22 ├ ƒ /[tenant]/custom-board/[boardId]                            20.4 kB         322 kB
+#11 44.22 ├ ƒ /[tenant]/dashboard                                         4.81 kB         134 kB
+#11 44.22 ├ ƒ /[tenant]/gantt-view                                         3.6 kB         199 kB
+#11 44.22 ├ ƒ /[tenant]/integrations                                      6.45 kB         132 kB
+#11 44.22 ├ ƒ /[tenant]/integrations/slack/mentions-analysis              3.72 kB         120 kB
+#11 44.22 ├ ƒ /[tenant]/integrations/testrail-oauth-simulated             4.78 kB         117 kB
+#11 44.22 ├ ƒ /[tenant]/integrations/testrail-token                       6.36 kB         115 kB
+#11 44.22 ├ ƒ /[tenant]/performance                                       9.25 kB         280 kB
+#11 44.22 ├ ƒ /[tenant]/project-overview                                  10.5 kB         161 kB
+#11 44.22 ├ ƒ /[tenant]/project/[projectId]                               7.41 kB         488 kB
+#11 44.22 ├ ƒ /[tenant]/sentiment-analysis                                  143 B         117 kB
+#11 44.22 ├ ƒ /[tenant]/settings                                          5.11 kB         118 kB
+#11 44.22 ├ ƒ /[tenant]/shared/project/[shareId]                          4.29 kB         450 kB
+#11 44.22 ├ ƒ /[tenant]/simple                                              432 B         102 kB
+#11 44.22 ├ ƒ /[tenant]/test                                                432 B         102 kB
+#11 44.22 ├ ƒ /[tenant]/testcases                                         5.63 kB         174 kB
+#11 44.22 ├ ƒ /[tenant]/velocity                                            156 B         245 kB
+#11 44.22 ├ ○ /admin                                                      14.5 kB         160 kB
+#11 44.22 ├ ○ /admin/roles                                                 4.6 kB         140 kB
+#11 44.22 ├ ƒ /api/admin/create-user                                        432 B         102 kB
+#11 44.22 ├ ƒ /api/admin/delete-user                                        432 B         102 kB
+#11 44.22 ├ ƒ /api/admin/list-users                                         432 B         102 kB
+#11 44.22 ├ ƒ /api/admin/update-existing-users                              432 B         102 kB
+#11 44.22 ├ ƒ /api/admin/update-user                                        432 B         102 kB
+#11 44.22 ├ ƒ /api/auth/[...nextauth]                                       432 B         102 kB
+#11 44.22 ├ ƒ /api/auth/jira/callback                                       432 B         102 kB
+#11 44.22 ├ ƒ /api/auth/jira/start                                          432 B         102 kB
+#11 44.22 ├ ƒ /api/auth/register                                            432 B         102 kB
+#11 44.22 ├ ƒ /api/auth/slack/callback                                      432 B         102 kB
+#11 44.22 ├ ƒ /api/auth/slack/start                                         432 B         102 kB
+#11 44.22 ├ ƒ /api/auth/teams/callback                                      432 B         102 kB
+#11 44.22 ├ ƒ /api/auth/teams/start                                         432 B         102 kB
+#11 44.22 ├ ƒ /api/auth/test-email                                          432 B         102 kB
+#11 44.22 ├ ƒ /api/auth/test-zapier                                         432 B         102 kB
+#11 44.22 ├ ƒ /api/auth/trello/callback                                     432 B         102 kB
+#11 44.22 ├ ƒ /api/auth/trello/start                                        432 B         102 kB
+#11 44.22 ├ ƒ /api/auth/verify                                              432 B         102 kB
+#11 44.22 ├ ƒ /api/board/create-card                                        432 B         102 kB
+#11 44.22 ├ ƒ /api/column-mappings                                          432 B         102 kB
+#11 44.22 ├ ƒ /api/custom-boards                                            432 B         102 kB
+#11 44.22 ├ ƒ /api/custom-boards/activities                                 432 B         102 kB
+#11 44.22 ├ ƒ /api/custom-boards/cards                                      432 B         102 kB
+#11 44.22 ├ ƒ /api/custom-boards/performance                                432 B         102 kB
+#11 44.22 ├ ƒ /api/custom-boards/sprints                                    432 B         102 kB
+#11 44.22 ├ ƒ /api/custom-boards/users                                      432 B         102 kB
+#11 44.22 ├ ƒ /api/dashboard/stats                                          432 B         102 kB
+#11 44.22 ├ ƒ /api/debug/jira-connection                                    432 B         102 kB
+#11 44.22 ├ ƒ /api/debug/project-data                                       432 B         102 kB
+#11 44.22 ├ ƒ /api/debug/trello-cookies                                     432 B         102 kB
+#11 44.22 ├ ƒ /api/dependencies                                             432 B         102 kB
+#11 44.22 ├ ƒ /api/fix-project-analytics                                    432 B         102 kB
+#11 44.22 ├ ƒ /api/integrations/clear-projects                              432 B         102 kB
+#11 44.22 ├ ƒ /api/integrations/jira/boards                                 432 B         102 kB
+#11 44.22 ├ ƒ /api/integrations/jira/connect                                432 B         102 kB
+#11 44.22 ├ ƒ /api/integrations/jira/issue                                  432 B         102 kB
+#11 44.22 ├ ƒ /api/integrations/jira/transitions                            432 B         102 kB
+#11 44.22 ├ ƒ /api/integrations/refresh-analytics                           432 B         102 kB
+#11 44.22 ├ ƒ /api/integrations/slack/analyze                               432 B         102 kB
+#11 44.22 ├ ƒ /api/integrations/slack/connect                               432 B         102 kB
+#11 44.22 ├ ƒ /api/integrations/slack/mentions                              432 B         102 kB
+#11 44.22 ├ ƒ /api/integrations/slack/mentions-analysis                     432 B         102 kB
+#11 44.22 ├ ƒ /api/integrations/status                                      432 B         102 kB
+#11 44.22 ├ ƒ /api/integrations/sync                                        432 B         102 kB
+#11 44.22 ├ ƒ /api/integrations/testrail/connect                            432 B         102 kB
+#11 44.22 ├ ƒ /api/integrations/trello/cards/move                           432 B         102 kB
+#11 44.22 ├ ƒ /api/integrations/trello/connect                              432 B         102 kB
+#11 44.22 ├ ƒ /api/integrations/trello/lists                                432 B         102 kB
+#11 44.22 ├ ƒ /api/integrations/trello/sync                                 432 B         102 kB
+#11 44.22 ├ ƒ /api/nango/callback                                           432 B         102 kB
+#11 44.22 ├ ƒ /api/nango/connections                                        432 B         102 kB
+#11 44.22 ├ ƒ /api/nango/disconnect                                         432 B         102 kB
+#11 44.22 ├ ƒ /api/nango/status                                             432 B         102 kB
+#11 44.22 ├ ƒ /api/nango/sync-to-db                                         432 B         102 kB
+#11 44.22 ├ ƒ /api/oauth-router/jira/callback                               432 B         102 kB
+#11 44.22 ├ ƒ /api/oauth-router/slack/callback                              432 B         102 kB
+#11 44.22 ├ ƒ /api/oauth-router/slack/start                                 432 B         102 kB
+#11 44.22 ├ ƒ /api/oauth-router/trello/callback                             432 B         102 kB
+#11 44.22 ├ ƒ /api/oauth-router/trello/start                                432 B         102 kB
+#11 44.22 ├ ƒ /api/shared/project                                           432 B         102 kB
+#11 44.22 ├ ƒ /api/tenants                                                  432 B         102 kB
+#11 44.22 ├ ƒ /api/test-jira-auth                                           432 B         102 kB
+#11 44.22 ├ ƒ /api/test-testrail-connection                                 432 B         102 kB
+#11 44.22 ├ ƒ /api/testcases/delete                                         432 B         102 kB
+#11 44.22 ├ ƒ /api/testcases/extract-pdf                                    432 B         102 kB
+#11 44.22 ├ ƒ /api/testcases/list                                           432 B         102 kB
+#11 44.22 ├ ƒ /api/testcases/send-to-jira                                   432 B         102 kB
+#11 44.22 ├ ƒ /api/testcases/send-to-testrail                               432 B         102 kB
+#11 44.22 ├ ƒ /api/testcases/send-to-trello                                 432 B         102 kB
+#11 44.22 ├ ƒ /api/user/info                                                432 B         102 kB
+#11 44.22 ├ ƒ /api/user/profile                                             432 B         102 kB
+#11 44.22 ├ ƒ /api/webhooks/events                                          432 B         102 kB
+#11 44.22 ├ ƒ /api/webhooks/jira                                            432 B         102 kB
+#11 44.22 ├ ƒ /api/webhooks/manage                                          432 B         102 kB
+#11 44.22 ├ ƒ /api/webhooks/polling/start                                   432 B         102 kB
+#11 44.22 ├ ƒ /api/webhooks/status                                          432 B         102 kB
+#11 44.22 ├ ƒ /api/webhooks/test                                            432 B         102 kB
+#11 44.22 ├ ƒ /api/webhooks/trello                                          432 B         102 kB
+#11 44.22 ├ ƒ /api/webhooks/trello-polling/start                            432 B         102 kB
+#11 44.22 ├ ○ /auth/register                                              7.34 kB         156 kB
+#11 44.22 ├ ○ /auth/signin                                                6.42 kB         129 kB
+#11 44.22 ├ ○ /auth/verify-email                                           5.6 kB         124 kB
+#11 44.22 ├ ○ /board                                                      10.6 kB         213 kB
+#11 44.22 ├ ○ /communication-overview                                     4.49 kB         133 kB
+#11 44.22 ├ ƒ /communication-overview/slack/analyze/[channelId]           4.31 kB         117 kB
+#11 44.22 ├ ƒ /custom-board/[boardId]                                     20.4 kB         322 kB
+#11 44.22 ├ ○ /dashboard                                                  4.81 kB         134 kB
+#11 44.22 ├ ○ /debug-zapier                                               4.74 kB         114 kB
+#11 44.22 ├ ○ /gantt-view                                                  3.6 kB         198 kB
+#11 44.22 ├ ○ /integrations                                               6.88 kB         133 kB
+#11 44.22 ├ ○ /integrations/debug                                         3.54 kB         113 kB
+#11 44.22 ├ ƒ /integrations/slack/analyze/[channelId]                      3.3 kB         112 kB
+#11 44.22 ├ ○ /integrations/slack/channels                                1.46 kB         127 kB
+#11 44.22 ├ ○ /integrations/slack/mentions-analysis                       3.71 kB         120 kB
+#11 44.22 ├ ○ /integrations/testrail-oauth-simulated                       4.8 kB         117 kB
+#11 44.22 ├ ○ /integrations/testrail-token                                6.97 kB         116 kB
+#11 44.22 ├ ○ /integrations/trello-token                                  4.42 kB         114 kB
+#11 44.22 ├ ○ /oauth-error                                                1.27 kB         103 kB
+#11 44.22 ├ ○ /performance                                                9.29 kB         280 kB
+#11 44.22 ├ ○ /project-overview                                           10.5 kB         161 kB
+#11 44.22 ├ ƒ /project-overview/slack/analyze/[channelId]                 4.46 kB         114 kB
+#11 44.22 ├ ƒ /project/[projectId]                                         8.3 kB         492 kB
+#11 44.22 ├ ○ /sentiment-analysis                                           143 B         117 kB
+#11 44.22 ├ ○ /settings                                                    5.1 kB         118 kB
+#11 44.22 ├ ƒ /shared/project/[shareId]                                   5.25 kB         467 kB
+#11 44.22 ├ ○ /tenants                                                    8.52 kB         118 kB
+#11 44.22 ├ ○ /test-testrail                                              6.12 kB         115 kB
+#11 44.22 ├ ○ /testcases                                                  5.63 kB         174 kB
+#11 44.22 ├ ○ /testcases-main-backup                                       4.7 kB         173 kB
+#11 44.22 └ ○ /velocity                                                     156 B         245 kB
+#11 44.22 + First Load JS shared by all                                    102 kB
+#11 44.22   ├ chunks/1684-f6debc1e0db7fa45.js                             46.4 kB
+#11 44.22   ├ chunks/4bd1b696-b59cc88fea532aff.js                         53.2 kB
+#11 44.22   └ other shared chunks (total)                                 2.17 kB
+#11 44.22 
+#11 44.22 
+#11 44.22 ƒ Middleware                                                    60.1 kB
+#11 44.22 
+#11 44.22 ○  (Static)   prerendered as static content
+#11 44.22 ƒ  (Dynamic)  server-rendered on demand
+#11 44.22 
+#11 44.28 + break
+#11 DONE 44.4s
+
+#12 [upmy-gmail runner 2/7] RUN addgroup --system --gid 1001 nodejs &&     adduser --system --uid 1001 nextjs
+#12 CACHED
+
+#13 [upmy-gmail runner 3/7] COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
+#13 DONE 0.4s
+
+#14 [upmy-gmail runner 4/7] COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+#14 DONE 0.1s
+
+#15 [upmy-gmail runner 5/7] COPY --from=builder --chown=nextjs:nodejs /app/public ./public
+#15 DONE 0.0s
+
+#16 [upmy-gmail runner 6/7] COPY --from=builder --chown=nextjs:nodejs /app/server.prod.js ./server.prod.js
+#16 DONE 0.0s
+
+#17 [upmy-gmail runner 7/7] RUN mv ./server.js ./server.standalone.js 2>/dev/null || true
+#17 DONE 0.3s
+
+#18 [upmy-gmail] exporting to image
+#18 exporting layers
+#18 exporting layers 2.3s done
+#18 exporting manifest sha256:35aefb225b550aa31fbdfb6953f79d6ff48980579ae638d67508f5f52e260fe7 done
+#18 exporting config sha256:bc902171017dc83d95ba488a0bfdaa820426a471137d0eade75cb2052abd2799 0.0s done
+#18 exporting attestation manifest sha256:ad84ab47e42303e7e748d2e5bc5c175138384ce16ff0c69f94c37c9652da5b38 0.0s done
+#18 exporting manifest list sha256:c318b967b40bfc875e52c71bc31d5f98839970c680def2901b63cdb529127980 done
+#18 naming to docker.io/library/gmail-upmy-gmail:latest done
+#18 unpacking to docker.io/library/gmail-upmy-gmail:latest
+#18 unpacking to docker.io/library/gmail-upmy-gmail:latest 0.6s done
+#18 DONE 2.9s
+
+#19 [upmy-gmail] resolving provenance for metadata file
+#19 DONE 0.0s
+ Network gmail_upmy-gmail-network  Creating
+ Network gmail_upmy-gmail-network  Created
+ Container mongo-gmail  Creating
+ Container mongo-gmail  Created
+ Container upmy-gmail  Creating
+ Container upmy-gmail  Created
+ Container mongo-gmail  Starting
+ Container mongo-gmail  Started
+ Container upmy-gmail  Starting
+ Container upmy-gmail  Started
+
+[2026-02-25T10:03:36.925Z] Build process exited with code: 0

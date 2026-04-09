@@ -1,0 +1,54 @@
+version: '3.8'
+
+services:
+  upmy-app:
+    build: 
+      context: .
+      dockerfile: https-setup/Dockerfile.prod
+      target: runner
+    ports:
+      - "9003:9003"
+    # Load ALL environment variables from .env file (includes NANGO_SECRET_KEY, etc.)
+    env_file:
+      - .env
+    environment:
+      - NODE_ENV=production
+      - DATABASE_URL=mongodb://mongo:27017/upmy_db
+      - NEXTAUTH_URL=${NEXTAUTH_URL:-https://172.16.34.47:9003}
+      - NEXTAUTH_SECRET=SkJkUlbIlbcoVlfw3oJUzzvlBfhoNcEY
+      - APP_URL=${APP_URL:-https://172.16.34.47:9003}
+      - NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL:-https://172.16.34.47:9003}
+      - NEXT_PUBLIC_HOST_IP=${NEXT_PUBLIC_HOST_IP:-172.16.34.47}
+      # ========== NANGO CONFIGURATION ==========
+      # Server-side SDK uses direct IP to Nango (NOT ngrok!)
+      - NANGO_SERVER_URL=http://172.16.34.39:3003
+      # Frontend uses ngrok proxy for OAuth flows (HTTPS)
+      - NEXT_PUBLIC_NANGO_SERVER_URL=https://irremovable-overexuberantly-jaxen.ngrok-free.dev
+      - NEXT_PUBLIC_NANGO_PROXY_URL=https://irremovable-overexuberantly-jaxen.ngrok-free.dev
+      # ========== SLACK OAUTH CONFIGURATION ==========
+      - SLACK_CLIENT_ID=${SLACK_CLIENT_ID}
+      - SLACK_CLIENT_SECRET=${SLACK_CLIENT_SECRET}
+    depends_on:
+      - mongo
+    networks:
+      - upmy-network
+    volumes:
+      - ./https-setup/localhost+4.pem:/app/localhost+4.pem:ro
+      - ./https-setup/localhost+4-key.pem:/app/localhost+4-key.pem:ro
+
+  mongo:
+    image: mongo
+    ports:
+      - "27018:27017"
+    volumes:
+      - mongo_data:/data/db
+    networks:
+      - upmy-network
+
+networks:
+  upmy-network:
+    driver: bridge
+
+volumes:
+  mongo_data:
+    name: mongo_data

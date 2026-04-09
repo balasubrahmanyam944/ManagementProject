@@ -1,0 +1,475 @@
+"use client";
+
+import React, { useMemo } from 'react';
+import { format, parseISO, differenceInDays, addDays, isValid } from 'date-fns';
+import { JiraDashboardIssue, TrelloCard } from '@/types/integrations';
+
+// Define the data structure for Gantt chart items
+export interface GanttChartItem {
+  id: string;
+  name: string;
+  startDate: Date;
+  endDate: Date;
+  progress: number;
+  status: string;
+  assignee?: string;
+  type: string;
+  priority?: string;
+  dependencies?: string[];
+}
+
+interface GanttChartProps {
+  issues: JiraDashboardIssue[] | TrelloCard[];
+  title?: string;
+}
+
+// Helper function to determine if an issue is a Jira issue
+const isJiraIssue = (issue: any): issue is JiraDashboardIssue => {
+  return 'key' in issue && 'status' in issue && 'created' in issue;
+};
+
+// Helper function to determine if an issue is a Trello card
+const isTrelloCard = (issue: any): issue is TrelloCard => {
+  return 'idList' in issue && 'list' in issue;
+};
+
+// Convert issues to Gantt chart items
+const convertToGanttItems = (issues: (JiraDashboardIssue | TrelloCard)[]): GanttChartItem[] => {
+  return issues.map((issue, index) => {
+    if (isJiraIssue(issue)) {
+      // Debug: Log the issue dates
+      console.log(`🔍 Gantt: Processing Jira issue ${issue.key}:`, {
+        created: issue.created,
+        updated: issue.updated,
+        duedate: issue.duedate,
+        resolutiondate: issue.resolutiondate,
+        customfield_10015: issue.customfield_10015,
+        customfield_10018: issue.customfield_10018,
+        customfield_10019: issue.customfield_10019
+      });
+
+      // Determine start date: try multiple custom fields, then fall back to created date
+      let startDate = new Date();
+      if (issue.customfield_10018) {
+        // Sprint start date is often in customfield_10018
+        startDate = parseISO(issue.customfield_10018);
+        console.log(`🔍 Gantt: Using customfield_10018 (start date) for ${issue.key}:`, startDate);
+      } else if (issue.customfield_10015) {
+        startDate = parseISO(issue.customfield_10015);
+        console.log(`🔍 Gantt: Using customfield_10015 for ${issue.key}:`, startDate);
+      } else if (issue.created) {
+        startDate = parseISO(issue.created);
+        console.log(`🔍 Gantt: Using created date for ${issue.key}:`, startDate);
+      }
+
+      // Determine end date: priority order: duedate > resolutiondate > updated date > calculated
+      let endDate = addDays(startDate, 1); // Default to 1 day duration
+      if (issue.duedate) {
+        endDate = parseISO(issue.duedate);
+        console.log(`🔍 Gantt: Using due date for ${issue.key}:`, endDate);
+      } else if (issue.resolutiondate) {
+        endDate = parseISO(issue.resolutiondate);
+        console.log(`🔍 Gantt: Using resolution date for ${issue.key}:`, endDate);
+      } else if (issue.updated && parseISO(issue.updated) > startDate) {
+        endDate = parseISO(issue.updated);
+        console.log(`🔍 Gantt: Using updated date for ${issue.key}:`, endDate);
+      } else {
+        // If no specific end date, show as single day task (as requested by user)
+        endDate = addDays(startDate, 1); // Single day duration when no dates are set
+        console.log(`🔍 Gantt: No dates set, showing single day for ${issue.key}:`, endDate);
+      }
+
+      // Ensure end date is after start date
+      if (endDate <= startDate) {
+        endDate = addDays(startDate, 1);
+        console.log(`🔍 Gantt: Adjusted end date for ${issue.key}:`, endDate);
+      }
+      
+      // Calculate progress based on status
+      let progress = 0;
+      switch (issue.status.name.toLowerCase()) {
+        case 'done':
+        case 'closed':
+        case 'resolved':
+          progress = 100;
+          break;
+        case 'in progress':
+        case 'in development':
+          progress = 50;
+          break;
+        case 'in review':
+        case 'testing':
+          progress = 75;
+          break;
+        default:
+          progress = 0;
+      }
+
+      return {
+        id: issue.id,
+        name: issue.summary,
+        startDate: isValid(startDate) ? startDate : new Date(),
+        endDate: isValid(endDate) ? endDate : addDays(startDate, 1),
+        progress,
+        status: issue.status.name,
+        assignee: issue.assignee?.displayName || 'Unassigned',
+        type: issue.issuetype.name,
+        priority: issue.priority?.name,
+        dependencies: []
+      };
+    } else if (isTrelloCard(issue)) {
+      // Debug: Log the card dates
+      console.log(`🔍 Gantt: Processing Trello card ${issue.name}:`, {
+        dateLastActivity: issue.dateLastActivity,
+        due: issue.due
+      });
+
+      // For Trello cards, use dateLastActivity as start date (when card was last worked on)
+      let startDate = new Date();
+      if (issue.dateLastActivity) {
+        startDate = parseISO(issue.dateLastActivity);
+        console.log(`🔍 Gantt: Using dateLastActivity for ${issue.name}:`, startDate);
+      }
+
+      // Use due date if available, otherwise create a reasonable duration
+      let endDate = addDays(startDate, 1); // Default to 1 day duration
+      if (issue.due) {
+        endDate = parseISO(issue.due);
+        console.log(`🔍 Gantt: Using due date for ${issue.name}:`, endDate);
+        // If due date is before start date, adjust start date
+        if (endDate < startDate) {
+          startDate = addDays(endDate, -3); // Start 3 days before due date
+          console.log(`🔍 Gantt: Adjusted start date for ${issue.name}:`, startDate);
+        }
+      } else {
+        // No due date set, show as single day task (as requested by user)
+        endDate = addDays(startDate, 1); // Single day duration when no due date is set
+        console.log(`🔍 Gantt: No due date set, showing single day for ${issue.name}:`, endDate);
+      }
+
+      // Ensure end date is after start date
+      if (endDate <= startDate) {
+        endDate = addDays(startDate, 1);
+        console.log(`🔍 Gantt: Final adjusted end date for ${issue.name}:`, endDate);
+      }
+      
+      // Calculate progress based on list name/status
+      let progress = 0;
+      const listName = issue.list.name.toLowerCase();
+      if (listName.includes('done') || listName.includes('complete')) {
+        progress = 100;
+      } else if (listName.includes('doing') || listName.includes('progress')) {
+        progress = 50;
+      } else if (listName.includes('review') || listName.includes('testing')) {
+        progress = 75;
+      }
+
+      return {
+        id: issue.id,
+        name: issue.name,
+        startDate: isValid(startDate) ? startDate : new Date(),
+        endDate: isValid(endDate) ? endDate : addDays(startDate, 1),
+        progress,
+        status: issue.list.name,
+        assignee: issue.members.length > 0 ? issue.members[0].fullName : 'Unassigned',
+        type: 'Card',
+        priority: issue.labels && issue.labels.length > 0 ? issue.labels[0].name : 'Normal',
+        dependencies: []
+      };
+    }
+    
+    // Fallback
+    return {
+      id: `item-${index}`,
+      name: 'Unknown Item',
+      startDate: new Date(),
+      endDate: addDays(new Date(), 1),
+      progress: 0,
+      status: 'Unknown',
+      type: 'Unknown',
+      dependencies: []
+    };
+  });
+};
+
+// Helper function to get status color
+const getStatusColor = (status: string, progress: number): string => {
+  if (progress === 100) return '#22c55e'; // green
+  if (progress >= 75) return '#3b82f6'; // blue
+  if (progress >= 50) return '#f59e0b'; // amber
+  if (progress > 0) return '#ef4444'; // red
+  return '#6b7280'; // gray
+};
+
+// Helper function to get priority color
+const getPriorityColor = (priority?: string): string => {
+  if (!priority) return '#6b7280';
+  
+  switch (priority.toLowerCase()) {
+    case 'highest':
+    case 'critical':
+      return '#dc2626';
+    case 'high':
+      return '#ea580c';
+    case 'medium':
+    case 'normal':
+      return '#ca8a04';
+    case 'low':
+      return '#16a34a';
+    case 'lowest':
+      return '#0891b2';
+    default:
+      return '#6b7280';
+  }
+};
+
+export default function GanttChart({ issues, title = "Project Gantt Chart" }: GanttChartProps) {
+  const ganttItems = useMemo(() => convertToGanttItems(issues), [issues]);
+  
+  // Calculate date range
+  const dateRange = useMemo(() => {
+    if (ganttItems.length === 0) {
+      return {
+        startDate: new Date(),
+        endDate: addDays(new Date(), 30),
+        totalDays: 30
+      };
+    }
+
+    const allDates = ganttItems.flatMap(item => [item.startDate, item.endDate]);
+    const minDate = new Date(Math.min(...allDates.map(d => d.getTime())));
+    const maxDate = new Date(Math.max(...allDates.map(d => d.getTime())));
+    
+    // Add some padding
+    const startDate = addDays(minDate, -2);
+    const endDate = addDays(maxDate, 2);
+    const totalDays = differenceInDays(endDate, startDate);
+
+    return { startDate, endDate, totalDays };
+  }, [ganttItems]);
+
+  // Generate timeline headers
+  const timelineHeaders = useMemo(() => {
+    const headers = [];
+    let currentDate = dateRange.startDate;
+    
+    while (currentDate <= dateRange.endDate) {
+      headers.push({
+        date: new Date(currentDate),
+        label: format(currentDate, 'MMM dd')
+      });
+      currentDate = addDays(currentDate, 1);
+    }
+    
+    return headers;
+  }, [dateRange]);
+
+  if (!issues || issues.length === 0) {
+    return (
+      <div className="flex items-center justify-center h-64 border rounded-lg">
+        <p className="text-muted-foreground">No tasks available for Gantt view</p>
+      </div>
+    );
+  }
+
+  const ITEM_HEIGHT = 50;
+  const TASK_NAME_WIDTH = 300;
+
+  return (
+    <div className="w-full">
+      <h3 className="text-lg font-semibold mb-4">{title}</h3>
+      
+      <div className="border rounded-lg overflow-hidden bg-white">
+        {/* Sticky Header */}
+        <div className="sticky top-0 z-20 bg-white border-b shadow-sm">
+          <div className="overflow-x-auto">
+            <div style={{ minWidth: `${TASK_NAME_WIDTH + timelineHeaders.length * 60}px` }}>
+              <div className="flex bg-gray-50">
+                <div 
+                  className="border-r p-3 font-medium bg-gray-100 flex items-center flex-shrink-0"
+                  style={{ width: TASK_NAME_WIDTH, minWidth: TASK_NAME_WIDTH }}
+                >
+                  <span>Task</span>
+                </div>
+                <div className="flex">
+                  {timelineHeaders.map((header, index) => (
+                    <div 
+                      key={index}
+                      className="border-r p-2 text-center text-xs font-medium bg-gray-100 flex-shrink-0"
+                      style={{ minWidth: '60px', width: '60px' }}
+                    >
+                      {header.label}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Scrollable Tasks Container */}
+        <div className="max-h-96 overflow-y-auto overflow-x-auto">
+          <div style={{ minWidth: `${TASK_NAME_WIDTH + timelineHeaders.length * 60}px` }}>
+            {/* Tasks */}
+              {ganttItems.map((item, index) => {
+                const startOffset = differenceInDays(item.startDate, dateRange.startDate);
+                const duration = differenceInDays(item.endDate, item.startDate) || 1;
+                const leftPosition = Math.max(0, startOffset * 60);
+                const barWidth = Math.max(20, duration * 60);
+
+                return (
+                  <div key={item.id} className="flex border-b hover:bg-gray-50">
+                    {/* Task Info */}
+                    <div 
+                      className="border-r p-3 flex flex-col justify-center flex-shrink-0"
+                      style={{ width: TASK_NAME_WIDTH, minWidth: TASK_NAME_WIDTH }}
+                    >
+                      <div className="font-medium text-sm truncate" title={item.name}>
+                        {item.name}
+                      </div>
+                      <div className="flex flex-col gap-1 mt-1">
+                        <div className="flex items-center gap-2">
+                          <span 
+                            className="w-2 h-2 rounded-full"
+                            style={{ backgroundColor: getPriorityColor(item.priority) }}
+                            title={`Priority: ${item.priority || 'Normal'}`}
+                          />
+                          <span className="text-xs text-gray-500">
+                            {item.progress}%
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <span className="text-xs text-gray-500">👤</span>
+                          <span className="text-xs text-gray-700 font-medium truncate" title={`Assigned to: ${item.assignee}`}>
+                            {item.assignee}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Timeline */}
+                    <div 
+                      className="relative flex items-center"
+                      style={{ height: ITEM_HEIGHT, width: `${timelineHeaders.length * 60}px`, minWidth: `${timelineHeaders.length * 60}px` }}
+                    >
+                      {/* Timeline Grid Lines */}
+                      {timelineHeaders.map((_, headerIndex) => (
+                        <div
+                          key={headerIndex}
+                          className="absolute border-r border-gray-200"
+                          style={{
+                            left: `${headerIndex * 60}px`,
+                            height: '100%',
+                            width: '1px'
+                          }}
+                        />
+                      ))}
+
+                      {/* Gantt Bar */}
+                      <div
+                        className="absolute rounded-md shadow-sm border z-10"
+                        style={{
+                          left: `${leftPosition}px`,
+                          width: `${barWidth}px`,
+                          height: '20px',
+                          backgroundColor: getStatusColor(item.status, item.progress),
+                          opacity: 0.8
+                        }}
+                        title={`${item.name}\nAssignee: ${item.assignee}\nStatus: ${item.status}\nProgress: ${item.progress}%\nPriority: ${item.priority || 'Normal'}\nStart: ${format(item.startDate, 'MMM dd, yyyy')}\nEnd: ${format(item.endDate, 'MMM dd, yyyy')}\nDuration: ${differenceInDays(item.endDate, item.startDate) + 1} day(s)`}
+                                              >
+                          {/* Progress Bar */}
+                          <div
+                            className="h-full rounded-md"
+                            style={{
+                              width: `${item.progress}%`,
+                              backgroundColor: getStatusColor(item.status, item.progress),
+                              opacity: 1
+                            }}
+                          />
+                          {/* Assignee initials on bar (if bar is wide enough) */}
+                          {barWidth > 40 && (
+                            <div className="absolute inset-0 flex items-center justify-center">
+                              <span 
+                                className="text-xs font-semibold text-white drop-shadow-sm"
+                                style={{ 
+                                  textShadow: '1px 1px 1px rgba(0,0,0,0.5)',
+                                  fontSize: '10px'
+                                }}
+                              >
+                                {(item.assignee || 'Unassigned').split(' ').map(name => name.charAt(0)).join('').substring(0, 2).toUpperCase()}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Legend */}
+      <div className="mt-4 p-4 bg-gray-50 rounded-lg">
+        <h4 className="text-sm font-medium mb-2">Legend</h4>
+        <div className="mb-3 text-xs text-gray-600">
+          <span className="font-medium">📋 Task Information:</span> Each task shows the title, assignee (👤), progress percentage, and priority indicator.
+          Assignee initials appear on wider Gantt bars.
+        </div>
+        <div className="mb-3 text-xs text-gray-600">
+          <span className="font-medium">📅 Date Logic:</span> 
+          <strong>Jira:</strong> Uses due date → resolution date → updated date → single day from creation. 
+          <strong>Trello:</strong> Uses due date → single day from last activity. 
+          <strong>Fallback:</strong> Tasks without specific dates show as 1-day duration.
+        </div>
+        <div className="flex flex-wrap gap-4 text-xs">
+          <div className="flex items-center gap-2">
+            <div className="w-4 h-4 bg-gray-400 rounded"></div>
+            <span>Not Started (0%)</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-4 h-4 bg-red-500 rounded"></div>
+            <span>Started (1-49%)</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-4 h-4 bg-amber-500 rounded"></div>
+            <span>In Progress (50-74%)</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-4 h-4 bg-blue-500 rounded"></div>
+            <span>Near Complete (75-99%)</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-4 h-4 bg-green-500 rounded"></div>
+            <span>Complete (100%)</span>
+          </div>
+        </div>
+        
+        <div className="mt-2 flex flex-wrap gap-4 text-xs">
+          <span className="font-medium">Priority Colors:</span>
+          <div className="flex items-center gap-2">
+            <div className="w-2 h-2 bg-red-600 rounded-full"></div>
+            <span>Critical/Highest</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-2 h-2 bg-orange-600 rounded-full"></div>
+            <span>High</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-2 h-2 bg-yellow-600 rounded-full"></div>
+            <span>Medium/Normal</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-2 h-2 bg-green-600 rounded-full"></div>
+            <span>Low</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-2 h-2 bg-cyan-600 rounded-full"></div>
+            <span>Lowest</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+} 
