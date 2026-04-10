@@ -84,6 +84,9 @@ export async function GET(request: NextRequest) {
     let trelloConnected = false;
     let testrailConnected = false;
     let slackConnected = false;
+    let jiraConnectedViaNango = false;
+    let trelloConnectedViaNango = false;
+    let slackConnectedViaNango = false;
     
     // Get tenant ID from request URL path or query param
     const tenantId = request.nextUrl.searchParams.get('tenantId') || 
@@ -99,6 +102,7 @@ export async function GET(request: NextRequest) {
         const nangoStatus = await jiraNangoService.getConnectionStatus(session.user.id, tenantId);
         if (nangoStatus.connected) {
           jiraConnected = true;
+          jiraConnectedViaNango = true;
           console.log('✅ STATUS ENDPOINT (TENANT): Jira connected via Nango');
         } else {
           console.log('ℹ️ STATUS ENDPOINT (TENANT): Jira not connected via Nango, checking database');
@@ -141,6 +145,7 @@ export async function GET(request: NextRequest) {
         const nangoStatus = await trelloNangoService.getConnectionStatus(session.user.id, tenantId);
         if (nangoStatus.connected) {
           trelloConnected = true;
+          trelloConnectedViaNango = true;
           console.log('✅ STATUS ENDPOINT (TENANT): Trello connected via Nango');
         } else {
           console.log('ℹ️ STATUS ENDPOINT (TENANT): Trello not connected via Nango, checking database');
@@ -183,6 +188,7 @@ export async function GET(request: NextRequest) {
         const nangoStatus = await slackNangoService.getConnectionStatus(session.user.id, tenantId);
         if (nangoStatus.connected) {
           slackConnected = true;
+          slackConnectedViaNango = true;
           console.log('✅ STATUS ENDPOINT (TENANT): Slack connected via Nango');
         } else {
           console.log('ℹ️ STATUS ENDPOINT (TENANT): Slack not connected via Nango, checking database');
@@ -342,13 +348,20 @@ export async function GET(request: NextRequest) {
     if (!fast && jiraConnected && projectsByIntegration.jira.length === 0) {
       try {
         console.log('Auto-fetching Jira projects for newly connected integration');
-        await jiraService.fetchAndStoreProjects(session.user.id);
+        if (jiraConnectedViaNango) {
+          const { jiraNangoService } = await import('@/lib/integrations/jira-nango-service');
+          await jiraNangoService.fetchAndStoreProjects(session.user.id, tenantId);
+        } else {
+          await jiraService.fetchAndStoreProjects(session.user.id);
+        }
         // Re-fetch projects after auto-sync
         const updatedProjects = await db.findProjectsByUserId(session.user.id);
-        projectsByIntegration.jira = updatedProjects.filter(p => {
-          const integration = integrations.find(i => i._id.toString() === p.integrationId.toString())
-          return integration?.type === 'JIRA' && p.isActive
-        });
+        projectsByIntegration.jira = deduplicateProjects(updatedProjects.filter(p => {
+          if (!p.isActive) return false;
+          if ((p as any).integrationType === 'JIRA') return true;
+          if (p.integrationId?.toString().startsWith('nango_jira_')) return true;
+          return integrationIdsByType.JIRA.has(p.integrationId?.toString() || '');
+        }));
       } catch (error) {
         console.error('Auto-fetch Jira projects failed:', error);
       }
@@ -357,13 +370,20 @@ export async function GET(request: NextRequest) {
     if (!fast && trelloConnected && projectsByIntegration.trello.length === 0) {
       try {
         console.log('Auto-fetching Trello boards for newly connected integration');
-        await trelloService.fetchAndStoreBoards(session.user.id);
+        if (trelloConnectedViaNango) {
+          const { trelloNangoService } = await import('@/lib/integrations/trello-nango-service');
+          await trelloNangoService.fetchAndStoreBoards(session.user.id, tenantId);
+        } else {
+          await trelloService.fetchAndStoreBoards(session.user.id);
+        }
         // Re-fetch projects after auto-sync
         const updatedProjects = await db.findProjectsByUserId(session.user.id);
-        projectsByIntegration.trello = updatedProjects.filter(p => {
-          const integration = integrations.find(i => i._id.toString() === p.integrationId.toString())
-          return integration?.type === 'TRELLO' && p.isActive
-        });
+        projectsByIntegration.trello = deduplicateProjects(updatedProjects.filter(p => {
+          if (!p.isActive) return false;
+          if ((p as any).integrationType === 'TRELLO') return true;
+          if (p.integrationId?.toString().startsWith('nango_trello_')) return true;
+          return integrationIdsByType.TRELLO.has(p.integrationId?.toString() || '');
+        }));
       } catch (error) {
         console.error('Auto-fetch Trello boards failed:', error);
       }
@@ -387,12 +407,19 @@ export async function GET(request: NextRequest) {
     if (!fast && slackConnected && projectsByIntegration.slack.length === 0) {
       try {
         console.log('Auto-fetching Slack channels for newly connected integration');
-        await slackService.fetchAndStoreChannels(session.user.id);
+        if (slackConnectedViaNango) {
+          const { slackNangoService } = await import('@/lib/integrations/slack-nango-service');
+          await slackNangoService.fetchAndStoreChannels(session.user.id, tenantId);
+        } else {
+          await slackService.fetchAndStoreChannels(session.user.id);
+        }
         const updatedProjects = await db.findProjectsByUserId(session.user.id);
-        projectsByIntegration.slack = updatedProjects.filter(p => {
-          const integration = integrations.find(i => i._id.toString() === p.integrationId.toString())
-          return integration?.type === 'SLACK' && p.isActive
-        });
+        projectsByIntegration.slack = deduplicateProjects(updatedProjects.filter(p => {
+          if (!p.isActive) return false;
+          if ((p as any).integrationType === 'SLACK') return true;
+          if (p.integrationId?.toString().startsWith('nango_slack_')) return true;
+          return integrationIdsByType.SLACK.has(p.integrationId?.toString() || '');
+        }));
       } catch (error) {
         console.error('Auto-fetch Slack channels failed:', error);
       }
