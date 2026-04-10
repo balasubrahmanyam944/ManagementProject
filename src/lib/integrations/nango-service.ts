@@ -638,10 +638,22 @@ class NangoService {
     const connectionId = this.getConnectionId(tenantId, userId);
     
     try {
+      // Resolve the actual Nango connection id first (UUID/session-token flow)
+      // and fall back to deterministic id for legacy flows.
+      let resolvedConnectionId = connectionId;
+      try {
+        const resolvedConnection = await this.getConnectionDirect(provider, connectionId, tenantId, userId);
+        if (resolvedConnection?.connection_id) {
+          resolvedConnectionId = resolvedConnection.connection_id;
+        }
+      } catch (resolveError) {
+        console.warn(`⚠️ Nango proxy: Could not resolve real connection id, using fallback ${connectionId}:`, resolveError);
+      }
+
       // Build query string from params
       const queryParams = new URLSearchParams();
       queryParams.set('provider_config_key', provider);
-      queryParams.set('connection_id', connectionId);
+      queryParams.set('connection_id', resolvedConnectionId);
       if (config.params) {
         Object.entries(config.params).forEach(([k, v]) => queryParams.set(k, v));
       }
