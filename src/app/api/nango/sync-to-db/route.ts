@@ -48,7 +48,9 @@ export async function POST(request: NextRequest) {
 
     console.log(`🔄 Nango Sync: Syncing ${provider} connection to database for user ${userId}`);
 
-    // Check if Nango connection exists
+    // Check if Nango connection exists. In connectSessionToken flows on hosted
+    // environments this can occasionally be delayed or use non-deterministic ids.
+    // Do not hard-fail sync; continue with a managed DB record and allow later refresh.
     const isNangoConnected = await nangoService.isConnected(
       provider as 'jira' | 'trello' | 'slack',
       tenantId,
@@ -56,11 +58,7 @@ export async function POST(request: NextRequest) {
     );
 
     if (!isNangoConnected) {
-      console.log(`⚠️ Nango Sync: ${provider} not connected in Nango`);
-      return NextResponse.json({ 
-        success: false, 
-        error: `${provider} not connected in Nango` 
-      }, { status: 400 });
+      console.warn(`⚠️ Nango Sync: ${provider} was not immediately verifiable in Nango; continuing with DB sync fallback`);
     }
 
     // Get connection metadata from Nango
@@ -134,9 +132,12 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      message: `${provider} synced to database`,
+      message: isNangoConnected
+        ? `${provider} synced to database`
+        : `${provider} synced to database (Nango verification pending)`,
       provider,
       tenantId,
+      nangoVerified: isNangoConnected,
       webhookRegistered: webhookResult.success,
       webhookError: webhookResult.error,
     });
