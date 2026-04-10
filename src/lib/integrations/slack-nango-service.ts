@@ -183,28 +183,40 @@ export class SlackNangoService {
     
     try {
       const result: SlackChannel[] = [];
+
+      // Always try public channels first.
       let cursor: string | undefined;
-      
       do {
         const params: Record<string, string> = {
           limit: '200',
-          types: 'public_channel,private_channel',
+          types: 'public_channel',
         };
-        
         if (cursor) {
           params.cursor = cursor;
         }
-        
-        const data = await this.makeRequest<any>(
-          userId,
-          'conversations.list',
-          params,
-          tenant
-        );
-        
+        const data = await this.makeRequest<any>(userId, 'conversations.list', params, tenant);
         result.push(...(data.channels || []));
         cursor = data.response_metadata?.next_cursor;
       } while (cursor);
+
+      // Try private channels separately; ignore if scope is missing.
+      cursor = undefined;
+      try {
+        do {
+          const params: Record<string, string> = {
+            limit: '200',
+            types: 'private_channel',
+          };
+          if (cursor) {
+            params.cursor = cursor;
+          }
+          const data = await this.makeRequest<any>(userId, 'conversations.list', params, tenant);
+          result.push(...(data.channels || []));
+          cursor = data.response_metadata?.next_cursor;
+        } while (cursor);
+      } catch (privateError) {
+        console.warn('⚠️ Slack Nango: Could not fetch private channels (likely missing groups:read). Continuing with public channels only.', privateError);
+      }
       
       console.log(`✅ Slack Nango: Found ${result.length} channels`);
       

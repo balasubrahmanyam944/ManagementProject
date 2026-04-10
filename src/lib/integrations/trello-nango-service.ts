@@ -90,12 +90,8 @@ export class TrelloNangoService {
   /**
    * Get API key from connection metadata or environment
    */
-  private getApiKey(): string {
-    const apiKey = process.env.TRELLO_API_KEY;
-    if (!apiKey) {
-      throw new Error('TRELLO_API_KEY environment variable is not set');
-    }
-    return apiKey;
+  private getApiKey(): string | null {
+    return process.env.TRELLO_API_KEY || null;
   }
 
   /**
@@ -149,6 +145,17 @@ export class TrelloNangoService {
     const tenant = tenantId || this.getTenantId();
     const accessToken = await this.getAccessToken(userId, tenant);
     const apiKey = this.getApiKey();
+    const method = (options.method || 'GET').toUpperCase() as 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
+
+    // For cloud deployments where TRELLO_API_KEY might not be configured,
+    // fall back to Nango proxy which injects OAuth credentials server-side.
+    if (!apiKey) {
+      return nangoService.proxy<T>(this.provider, tenant, userId, {
+        method,
+        endpoint,
+        data: options.body ? JSON.parse(String(options.body)) : undefined,
+      });
+    }
     
     // Build URL with auth params
     const url = new URL(`${this.apiBase}${endpoint}`);
