@@ -84,10 +84,7 @@ export {
  * Check if Nango is configured and should be used
  */
 export function isNangoEnabled(): boolean {
-  return !!(
-    process.env.NANGO_SECRET_KEY && 
-    process.env.NEXT_PUBLIC_NANGO_PUBLIC_KEY
-  );
+  return !!process.env.NANGO_SECRET_KEY;
 }
 
 /**

@@ -26,7 +26,6 @@ services:
       - NEXT_PUBLIC_NANGO_SERVER_URL=https://irremovable-overexuberantly-jaxen.ngrok-free.dev
       - NEXT_PUBLIC_NANGO_PROXY_URL=https://irremovable-overexuberantly-jaxen.ngrok-free.dev
       - NANGO_SECRET_KEY=2fcce571-d647-4102-9b22-27264a6b2eb3
-      - NEXT_PUBLIC_NANGO_PUBLIC_KEY=ae0757c4-81a5-4faa-82ee-dcd8498f10a5
       - NANGO_ENCRYPTION_KEY=tBm9WHU2FZ7SRRW0zw00LhyB1nqYpU4D
       - EMAIL_SERVER_HOST=smtp.gmail.com
       - EMAIL_SERVER_PORT=587

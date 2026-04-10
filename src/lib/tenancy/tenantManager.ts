@@ -153,7 +153,6 @@ function dockerComposeContent(tenant: string, appPort: number, mongoPort: number
 		// ========== NANGO AUTHENTICATION KEYS ==========
 		// Required for OAuth connections - loaded from main .env
 		...(process.env.NANGO_SECRET_KEY ? [`NANGO_SECRET_KEY=${process.env.NANGO_SECRET_KEY}`] : []),
-		...(process.env.NEXT_PUBLIC_NANGO_PUBLIC_KEY ? [`NEXT_PUBLIC_NANGO_PUBLIC_KEY=${process.env.NEXT_PUBLIC_NANGO_PUBLIC_KEY}`] : []),
 		...(process.env.NANGO_ENCRYPTION_KEY ? [`NANGO_ENCRYPTION_KEY=${process.env.NANGO_ENCRYPTION_KEY}`] : []),
 		// ========== EMAIL CONFIGURATION ==========
 		// Email settings - these will be loaded from main .env via env_file

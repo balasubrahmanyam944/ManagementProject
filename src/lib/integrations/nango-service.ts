@@ -622,22 +622,9 @@ class NangoService {
     }
   ): string {
     const connectionId = this.getConnectionId(tenantId, userId);
-    const publicKey = process.env.NEXT_PUBLIC_NANGO_PUBLIC_KEY;
-    // For self-hosted, this should point to your local Nango server
-    // The Nango frontend SDK will handle the proxy callback URL automatically
-    const serverUrl = process.env.NEXT_PUBLIC_NANGO_SERVER_URL || 'http://localhost:3003';
-    
-    if (!publicKey) {
-      throw new Error('NEXT_PUBLIC_NANGO_PUBLIC_KEY is not set');
-    }
-    
-    let url = `${serverUrl}/oauth/connect/${provider}?public_key=${publicKey}&connection_id=${connectionId}`;
-    
-    if (options?.redirectUrl) {
-      url += `&redirect_url=${encodeURIComponent(options.redirectUrl)}`;
-    }
-    
-    return url;
+    throw new Error(
+      `getAuthUrl is deprecated for ${provider}/${connectionId}. Use connectSessionToken via /api/nango/connect-session.`
+    );
   }
 }
 

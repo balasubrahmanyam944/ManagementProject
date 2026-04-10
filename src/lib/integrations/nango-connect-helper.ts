@@ -6,57 +6,35 @@
  */
 
 import Nango from '@nangohq/frontend';
-import { getNangoServerUrl, getNangoPublicKey, validateNangoConfig } from './nango-config';
+import { getNangoServerUrl, validateNangoConfig } from './nango-config';
 
 /**
- * Get Nango frontend instance
+ * Fetch a short-lived Connect Session token from backend
  */
-function getNangoInstance(): Nango | null {
-  // Validate configuration
-  const validation = validateNangoConfig();
-  
-  // Show warnings but don't block
-  if (validation.warnings.length > 0) {
-    console.warn('⚠️ Nango Configuration Warnings:');
-    validation.warnings.forEach(warn => console.warn('  -', warn));
+async function fetchConnectSessionToken(
+  provider: 'jira' | 'trello' | 'slack',
+  tenantId: string,
+  userId: string
+): Promise<string> {
+  const response = await fetch('/api/nango/connect-session', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ provider, tenantId, userId }),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData?.error || 'Failed to create Nango connect session');
   }
-  
-  if (!validation.valid) {
-    console.error('❌ Nango Configuration Errors:');
-    validation.errors.forEach(err => console.error('  -', err));
-    return null;
+
+  const data = await response.json();
+  if (!data?.connectSessionToken) {
+    throw new Error('Nango connect session token was not returned');
   }
-  
-  const publicKey = getNangoPublicKey();
-  const serverUrl = getNangoServerUrl();
-  
-  if (!publicKey) {
-    console.error('NEXT_PUBLIC_NANGO_PUBLIC_KEY is not set');
-    return null;
-  }
-  
-  console.log('🔧 Nango: Initializing with:');
-  console.log('  Server URL:', serverUrl);
-  console.log('  Public Key:', publicKey.substring(0, 8) + '...');
-  console.log('  Page Protocol:', typeof window !== 'undefined' ? window.location.protocol : 'server-side');
-  
-  try {
-    // Ensure serverUrl doesn't have trailing slash
-    const cleanServerUrl = serverUrl.replace(/\/$/, '');
-    
-    console.log('🔧 Nango: Creating instance with URL:', cleanServerUrl);
-    
-    const nango = new Nango({
-      publicKey,
-      host: cleanServerUrl,
-    });
-    
-    console.log('✅ Nango: Instance created successfully');
-    return nango;
-  } catch (error) {
-    console.error('❌ Nango: Failed to create instance:', error);
-    return null;
-  }
+
+  return data.connectSessionToken;
 }
 
 /**
@@ -153,18 +131,30 @@ export async function connectIntegrationViaNango(
   tenantId: string,
   userId: string
 ): Promise<void> {
-  const nango = getNangoInstance();
-  
-  if (!nango) {
-    throw new Error('Nango is not configured. Please set NEXT_PUBLIC_NANGO_PUBLIC_KEY in environment variables.');
+  const validation = validateNangoConfig();
+  if (validation.warnings.length > 0) {
+    console.warn('⚠️ Nango Configuration Warnings:');
+    validation.warnings.forEach((warn) => console.warn('  -', warn));
+  }
+
+  if (!validation.valid) {
+    console.error('❌ Nango Configuration Errors:');
+    validation.errors.forEach((err) => console.error('  -', err));
+    throw new Error('Nango is not configured correctly. Please check Nango server configuration.');
   }
   
   const connectionId = getConnectionId(tenantId, userId);
   const serverUrl = getNangoServerUrl();
+  const connectSessionToken = await fetchConnectSessionToken(provider, tenantId, userId);
+
+  const nango = new Nango({
+    connectSessionToken,
+    host: serverUrl.replace(/\/$/, ''),
+  });
   
   console.log(`🔄 Nango: Connecting ${provider} for ${connectionId}`);
   console.log(`🔧 Nango: Using server URL:`, serverUrl);
-  console.log(`🔧 Nango: Public key:`, getNangoPublicKey()?.substring(0, 8) + '...');
+  console.log('🔧 Nango: Using connect session token');
   
   // Intercept window.open to capture the popup reference
   const originalWindowOpen = window.open;
@@ -204,7 +194,7 @@ export async function connectIntegrationViaNango(
     if (provider === 'jira') {
       console.log(`🔍 Nango Jira: Provider: ${provider}, Connection ID: ${connectionId}`);
       console.log(`🔍 Nango Jira: Server URL: ${serverUrl}`);
-      console.log(`🔍 Nango Jira: Public Key present: ${!!getNangoPublicKey()}`);
+      console.log(`🔍 Nango Jira: Connect session token present: ${!!connectSessionToken}`);
       console.log(`🔍 Nango Jira: Nango instance created: ${!!nango}`);
       
       // Verify Nango instance has auth method

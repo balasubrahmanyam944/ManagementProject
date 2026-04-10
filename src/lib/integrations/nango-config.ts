@@ -64,22 +64,11 @@ export function getNangoServerUrl(): string {
 }
 
 /**
- * Get Nango public key
- */
-export function getNangoPublicKey(): string | null {
-  return process.env.NEXT_PUBLIC_NANGO_PUBLIC_KEY || null;
-}
-
-/**
  * Validate Nango configuration
  */
 export function validateNangoConfig(): { valid: boolean; errors: string[]; warnings: string[] } {
   const errors: string[] = [];
   const warnings: string[] = [];
-  
-  if (!getNangoPublicKey()) {
-    errors.push('NEXT_PUBLIC_NANGO_PUBLIC_KEY is not set');
-  }
   
   const serverUrl = getNangoServerUrl();
   

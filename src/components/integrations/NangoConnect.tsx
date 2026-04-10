@@ -74,9 +74,13 @@ interface NangoConnectProps {
  * - Nango automatically uses the proxy callback URL for OAuth flows
  * - Tokens are stored in your LOCAL PostgreSQL database
  */
-import { getNangoServerUrl, getNangoPublicKey, validateNangoConfig } from '@/lib/integrations/nango-config';
+import { getNangoServerUrl, validateNangoConfig } from '@/lib/integrations/nango-config';
 
-function getNangoInstance(): Nango | null {
+async function getNangoInstance(
+  provider: NangoProvider,
+  tenantId: string,
+  userId: string
+): Promise<Nango | null> {
   // Validate configuration
   const validation = validateNangoConfig();
   if (!validation.valid) {
@@ -85,20 +89,31 @@ function getNangoInstance(): Nango | null {
     return null;
   }
   
-  const publicKey = getNangoPublicKey();
   const serverUrl = getNangoServerUrl();
-  
-  if (!publicKey) {
-    console.error('NEXT_PUBLIC_NANGO_PUBLIC_KEY is not set');
+
+  const tokenResponse = await fetch('/api/nango/connect-session', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ provider, tenantId, userId }),
+  });
+
+  if (!tokenResponse.ok) {
+    const errorData = await tokenResponse.json().catch(() => ({}));
+    console.error('❌ Failed to create Nango connect session:', errorData);
     return null;
   }
-  
-  console.log('🔧 Nango: Initializing with:');
+
+  const sessionData = await tokenResponse.json();
+  if (!sessionData?.connectSessionToken) {
+    console.error('❌ Nango connect session token missing in API response');
+    return null;
+  }
+
+  console.log('🔧 Nango: Initializing with connect session token');
   console.log('  Server URL:', serverUrl);
-  console.log('  Public Key:', publicKey.substring(0, 8) + '...');
-  
+
   return new Nango({
-    publicKey,
+    connectSessionToken: sessionData.connectSessionToken,
     host: serverUrl,
   });
 }
@@ -155,7 +170,7 @@ export function NangoConnectButton({
   }, [provider, tenantId, userId]);
   
   const handleConnect = useCallback(async () => {
-    const nango = getNangoInstance();
+    const nango = await getNangoInstance(provider, tenantId, userId);
     if (!nango) {
       toast({
         title: 'Configuration Error',
@@ -198,7 +213,7 @@ export function NangoConnectButton({
     } finally {
       setIsConnecting(false);
     }
-  }, [provider, connectionId, providerInfo.name, toast, onConnect, onError]);
+  }, [provider, tenantId, userId, connectionId, providerInfo.name, toast, onConnect, onError]);
   
   const handleDisconnect = useCallback(async () => {
     setIsConnecting(true);
@@ -418,7 +433,7 @@ export function useNangoConnection(
   }, [checkStatus]);
   
   const connect = useCallback(async () => {
-    const nango = getNangoInstance();
+    const nango = await getNangoInstance(provider, tenantId, userId);
     if (!nango) {
       throw new Error('Nango is not configured');
     }
