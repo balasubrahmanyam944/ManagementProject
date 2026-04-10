@@ -76,6 +76,17 @@ interface NangoConnectProps {
  */
 import { getNangoServerUrl, validateNangoConfig } from '@/lib/integrations/nango-config';
 
+function getBasePath(): string {
+  if (typeof window !== 'undefined') {
+    const pathParts = window.location.pathname.split('/').filter(Boolean);
+    if (pathParts.length > 0) {
+      return `/${pathParts[0]}`;
+    }
+  }
+
+  return process.env.NEXT_PUBLIC_TENANT_BASEPATH || '';
+}
+
 async function getNangoInstance(
   provider: NangoProvider,
   tenantId: string,
@@ -91,7 +102,8 @@ async function getNangoInstance(
   
   const serverUrl = getNangoServerUrl();
 
-  const tokenResponse = await fetch('/api/nango/connect-session', {
+  const basePath = getBasePath();
+  const tokenResponse = await fetch(`${basePath}/api/nango/connect-session`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ provider, tenantId, userId }),
@@ -157,7 +169,7 @@ export function NangoConnectButton({
     setIsChecking(true);
     try {
       const response = await fetch(
-        `/api/nango/status?provider=${provider}&tenantId=${tenantId}&userId=${userId}`
+        `${getBasePath()}/api/nango/status?provider=${provider}&tenantId=${tenantId}&userId=${userId}`
       );
       const data = await response.json();
       setIsConnected(data.connected);
@@ -222,7 +234,8 @@ export function NangoConnectButton({
       console.log(`🔄 Nango: Disconnecting ${provider} for ${connectionId}`);
       
       // Call backend to disconnect
-      const response = await fetch('/api/nango/disconnect', {
+      const basePath = getBasePath();
+      const response = await fetch(`${basePath}/api/nango/disconnect`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -416,7 +429,7 @@ export function useNangoConnection(
     
     try {
       const response = await fetch(
-        `/api/nango/status?provider=${provider}&tenantId=${tenantId}&userId=${userId}`
+        `${getBasePath()}/api/nango/status?provider=${provider}&tenantId=${tenantId}&userId=${userId}`
       );
       const data = await response.json();
       setIsConnected(data.connected);
@@ -444,7 +457,8 @@ export function useNangoConnection(
   }, [provider, tenantId, userId]);
   
   const disconnect = useCallback(async () => {
-    const response = await fetch('/api/nango/disconnect', {
+    const basePath = getBasePath();
+    const response = await fetch(`${basePath}/api/nango/disconnect`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ provider, tenantId, userId }),

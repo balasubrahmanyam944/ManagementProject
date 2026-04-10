@@ -8,6 +8,17 @@
 import Nango from '@nangohq/frontend';
 import { getNangoServerUrl, validateNangoConfig } from './nango-config';
 
+function getBasePath(): string {
+  if (typeof window !== 'undefined') {
+    const pathParts = window.location.pathname.split('/').filter(Boolean);
+    if (pathParts.length > 0) {
+      return `/${pathParts[0]}`;
+    }
+  }
+
+  return process.env.NEXT_PUBLIC_TENANT_BASEPATH || '';
+}
+
 /**
  * Fetch a short-lived Connect Session token from backend
  */
@@ -16,7 +27,8 @@ async function fetchConnectSessionToken(
   tenantId: string,
   userId: string
 ): Promise<string> {
-  const response = await fetch('/api/nango/connect-session', {
+  const basePath = getBasePath();
+  const response = await fetch(`${basePath}/api/nango/connect-session`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -333,8 +345,9 @@ export async function isIntegrationConnectedViaNango(
   userId: string
 ): Promise<boolean> {
   try {
+    const basePath = getBasePath();
     const response = await fetch(
-      `/api/nango/status?provider=${provider}&tenantId=${encodeURIComponent(tenantId)}&userId=${encodeURIComponent(userId)}`
+      `${basePath}/api/nango/status?provider=${provider}&tenantId=${encodeURIComponent(tenantId)}&userId=${encodeURIComponent(userId)}`
     );
     const data = await response.json();
     return data.connected === true;
