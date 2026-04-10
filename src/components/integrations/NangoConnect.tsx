@@ -198,7 +198,8 @@ export function NangoConnectButton({
       console.log(`🔄 Nango: Connecting ${provider} for ${connectionId}`);
       
       // Open Nango OAuth popup
-      const result = await nango.auth(provider, connectionId);
+      // With connectSessionToken, do not pass connection_id to auth().
+      const result = await nango.auth(provider);
       
       console.log(`✅ Nango: Connected ${provider}`, result);
       
@@ -452,7 +453,7 @@ export function useNangoConnection(
     }
     
     const connectionId = getConnectionId(tenantId, userId);
-    await nango.auth(provider, connectionId);
+    await nango.auth(provider);
     setIsConnected(true);
   }, [provider, tenantId, userId]);
   

@@ -216,7 +216,8 @@ export async function connectIntegrationViaNango(
       }
     }
     
-    const authPromise = nango.auth(provider, connectionId);
+    // With connectSessionToken, do not pass connection_id to auth().
+    const authPromise = nango.auth(provider);
     console.log(`⏳ Nango: Waiting for OAuth popup to complete...`);
     
     // For Jira, add a timeout to detect if popup never opens
