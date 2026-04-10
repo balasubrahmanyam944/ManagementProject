@@ -21,6 +21,7 @@ export default function ProjectOverviewPage() {
   const [refreshing, setRefreshing] = useState(false);
   const [initialLoad, setInitialLoad] = useState(true);
   const [lastRefreshTime, setLastRefreshTime] = useState<Date | null>(null);
+  const [autoRefreshAttempted, setAutoRefreshAttempted] = useState(false);
   const [refreshingAnalytics, setRefreshingAnalytics] = useState(false);
   const [fixingProject, setFixingProject] = useState<string | null>(null);
   const { toast } = useToast();
@@ -91,13 +92,20 @@ export default function ProjectOverviewPage() {
         (integrations.trello.connected && projects.trello.length === 0)
       );
       
-      if (shouldAutoRefresh && !refreshing) {
+      if (shouldAutoRefresh && !refreshing && !autoRefreshAttempted) {
+        setAutoRefreshAttempted(true);
         setTimeout(() => {
           handleRefresh();
         }, 1000);
       }
+
+      // Reset one-time guard once data appears (or integrations disconnect),
+      // so a future fresh connection can trigger one auto-refresh again.
+      if (!shouldAutoRefresh && autoRefreshAttempted) {
+        setAutoRefreshAttempted(false);
+      }
     }
-  }, [integrations, projects, loading, initialLoad, refreshing]);
+  }, [integrations, projects, loading, initialLoad, refreshing, autoRefreshAttempted]);
 
   const getProjectGradient = (type: string) => {
     switch (type) {

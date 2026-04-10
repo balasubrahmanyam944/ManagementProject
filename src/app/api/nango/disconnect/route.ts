@@ -46,7 +46,14 @@ export async function POST(request: NextRequest) {
       const projects = await db.findProjectsByUserId(userId);
       
       for (const project of projects) {
-        if (project.integrationId === virtualIntegrationId) {
+        const integrationId = project.integrationId?.toString?.() || String(project.integrationId || '');
+        const integrationType = (project as any).integrationType;
+        const isProviderProject =
+          integrationId === virtualIntegrationId ||
+          integrationId.startsWith(`nango_${provider}_`) ||
+          integrationType === provider.toUpperCase();
+
+        if (isProviderProject) {
           await db.updateProject(project._id.toString(), { isActive: false });
         }
       }
