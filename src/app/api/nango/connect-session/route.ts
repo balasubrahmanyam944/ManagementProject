@@ -6,6 +6,13 @@ import type { NangoProvider } from '@/lib/integrations/nango-service';
 
 const VALID_PROVIDERS: NangoProvider[] = ['jira', 'trello', 'slack', 'testrail'];
 
+function getIntegrationId(provider: NangoProvider): string {
+  const fromEnv =
+    process.env[`NANGO_INTEGRATION_ID_${provider.toUpperCase()}`] ||
+    process.env[`NANGO_${provider.toUpperCase()}_INTEGRATION_ID`];
+  return fromEnv || provider;
+}
+
 export async function POST(request: NextRequest) {
   try {
     const session = await getServerSession(authConfig);
@@ -51,13 +58,22 @@ export async function POST(request: NextRequest) {
       ...(serverUrl ? { host: serverUrl } : {}),
     });
 
-    const { data } = await nango.createConnectSession({
+    const integrationId = getIntegrationId(provider);
+    console.log(`🔗 Nango Connect Session: provider=${provider}, integrationId=${integrationId}, tenant=${tenantId}`);
+
+    const connectSessionPayload: any = {
+      // Backward-compatible fields for older SDK/runtime combinations.
+      end_user: { id: userId },
+      organization: { id: tenantId },
+      // Preferred attribution fields (supported by newer Nango APIs).
       tags: {
         end_user_id: userId,
         organization_id: tenantId,
       },
-      allowed_integrations: [provider],
-    });
+      allowed_integrations: [integrationId],
+    };
+
+    const { data } = await nango.createConnectSession(connectSessionPayload);
 
     return NextResponse.json({
       connectSessionToken: data.token,
@@ -66,9 +82,18 @@ export async function POST(request: NextRequest) {
     });
   } catch (error: any) {
     console.error('❌ Nango connect session error:', error);
+    const status = error?.response?.status || 500;
+    const upstreamMessage =
+      error?.response?.data?.error ||
+      error?.response?.data?.message ||
+      error?.message ||
+      'Failed to create connect session';
     return NextResponse.json(
-      { error: error?.message || 'Failed to create connect session' },
-      { status: 500 }
+      {
+        error: upstreamMessage,
+        details: error?.response?.data || null
+      },
+      { status }
     );
   }
 }
