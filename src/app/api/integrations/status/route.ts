@@ -329,11 +329,25 @@ export async function GET(request: NextRequest) {
       })),
     }
 
-    // Auto-fetch fresh data for newly connected integrations that don't have projects yet
-    // Check if connected via Nango first (use the already-checked status)
-    const jiraNangoConnected = jiraConnected && !integrations.find(i => i.type === 'JIRA' && i.status === 'CONNECTED');
-    const trelloNangoConnected = trelloConnected && !integrations.find(i => i.type === 'TRELLO' && i.status === 'CONNECTED');
-    const slackNangoConnected = slackConnected && !integrations.find(i => i.type === 'SLACK' && i.status === 'CONNECTED');
+    // Auto-fetch fresh data for newly connected integrations.
+    // Treat an integration as Nango-managed if metadata says so OR if the DB integration
+    // does not carry legacy tokens (token-less connected record).
+    const jiraDbIntegration = integrations.find(i => i.type === 'JIRA' && i.status === 'CONNECTED');
+    const trelloDbIntegration = integrations.find(i => i.type === 'TRELLO' && i.status === 'CONNECTED');
+    const slackDbIntegration = integrations.find(i => i.type === 'SLACK' && i.status === 'CONNECTED');
+
+    const jiraNangoConnected = !!(
+      jiraConnected &&
+      (jiraDbIntegration?.metadata?.nangoManaged || !jiraDbIntegration?.accessToken)
+    );
+    const trelloNangoConnected = !!(
+      trelloConnected &&
+      (trelloDbIntegration?.metadata?.nangoManaged || !trelloDbIntegration?.accessToken)
+    );
+    const slackNangoConnected = !!(
+      slackConnected &&
+      (slackDbIntegration?.metadata?.nangoManaged || !slackDbIntegration?.accessToken)
+    );
     
     console.log('📊 STATUS: Auto-fetch check:', {
       jiraConnected,
@@ -360,10 +374,12 @@ export async function GET(request: NextRequest) {
         }
         // Re-fetch projects after auto-sync
         const updatedProjects = await db.findProjectsByUserId(session.user.id);
-        projectsByIntegration.jira = updatedProjects.filter(p => {
-          const integration = integrations.find(i => i._id.toString() === p.integrationId.toString())
-          return integration?.type === 'JIRA' && p.isActive
-        });
+        projectsByIntegration.jira = deduplicateProjects(updatedProjects.filter(p => {
+          if (!p.isActive) return false;
+          if ((p as any).integrationType === 'JIRA') return true;
+          if (p.integrationId?.toString().startsWith('nango_jira_')) return true;
+          return integrationIdsByType.JIRA.has(p.integrationId?.toString() || '');
+        }));
       } catch (error) {
         console.error('Auto-fetch Jira projects failed:', error);
       }
@@ -384,10 +400,12 @@ export async function GET(request: NextRequest) {
         }
         // Re-fetch projects after auto-sync
         const updatedProjects = await db.findProjectsByUserId(session.user.id);
-        projectsByIntegration.trello = updatedProjects.filter(p => {
-          const integration = integrations.find(i => i._id.toString() === p.integrationId.toString())
-          return integration?.type === 'TRELLO' && p.isActive
-        });
+        projectsByIntegration.trello = deduplicateProjects(updatedProjects.filter(p => {
+          if (!p.isActive) return false;
+          if ((p as any).integrationType === 'TRELLO') return true;
+          if (p.integrationId?.toString().startsWith('nango_trello_')) return true;
+          return integrationIdsByType.TRELLO.has(p.integrationId?.toString() || '');
+        }));
       } catch (error) {
         console.error('Auto-fetch Trello boards failed:', error);
       }
@@ -411,12 +429,19 @@ export async function GET(request: NextRequest) {
     if (!fast && slackConnected && projectsByIntegration.slack.length === 0) {
       try {
         console.log('Auto-fetching Slack channels for newly connected integration');
-        await slackService.fetchAndStoreChannels(session.user.id);
+        if (slackNangoConnected) {
+          const { slackNangoService } = await import('@/lib/integrations/slack-nango-service');
+          await slackNangoService.fetchAndStoreChannels(session.user.id, tenantId);
+        } else {
+          await slackService.fetchAndStoreChannels(session.user.id);
+        }
         const updatedProjects = await db.findProjectsByUserId(session.user.id);
-        projectsByIntegration.slack = updatedProjects.filter(p => {
-          const integration = integrations.find(i => i._id.toString() === p.integrationId.toString())
-          return integration?.type === 'SLACK' && p.isActive
-        });
+        projectsByIntegration.slack = deduplicateProjects(updatedProjects.filter(p => {
+          if (!p.isActive) return false;
+          if ((p as any).integrationType === 'SLACK') return true;
+          if (p.integrationId?.toString().startsWith('nango_slack_')) return true;
+          return integrationIdsByType.SLACK.has(p.integrationId?.toString() || '');
+        }));
       } catch (error) {
         console.error('Auto-fetch Slack channels failed:', error);
       }
