@@ -5,6 +5,7 @@ import { db } from '../db/database'
 import { getServerSession } from 'next-auth'
 import { authConfig } from '@/lib/auth/config'
 import { nangoService } from './nango-service'
+import { trelloNangoService } from './trello-nango-service'
 import type { 
   DetailedTrelloProject, 
   TrelloCard 
@@ -44,8 +45,20 @@ export async function getTrelloProjectDetailsAction(projectId: string) {
       return { success: false, error: 'Trello access token not available' }
     }
 
-    // Fetch cards and lists from Trello API
-    const { cards, lists } = await fetchTrelloCardsAndLists(accessToken, projectId)
+    // Fetch cards/lists via the same path used by the working Nango Trello service in status sync.
+    const tenantId = integration.metadata?.tenantId || 'default';
+    let cards: TrelloCard[] = [];
+    let lists: Array<{ id: string; name: string }> = [];
+
+    if (integration.metadata?.nangoManaged) {
+      cards = await trelloNangoService.fetchCards(session.user.id, projectId, tenantId);
+      const trelloLists = await trelloNangoService.fetchLists(session.user.id, projectId, tenantId);
+      lists = trelloLists.map((l) => ({ id: l.id, name: l.name }));
+    } else {
+      const legacyData = await fetchTrelloCardsAndLists(accessToken, projectId);
+      cards = legacyData.cards;
+      lists = legacyData.lists;
+    }
     console.log('Cards fetched for board', projectId, ':', cards.length, cards[0]);
 
     // Calculate analytics for Trello board
