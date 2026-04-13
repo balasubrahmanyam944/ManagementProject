@@ -587,10 +587,15 @@ export async function GET(request: NextRequest) {
                   throw new Error('Trello access token not available');
                 }
                 
-                // Dynamically import fetchTrelloCards from trello-integration
-                const { fetchTrelloCards } = await import('@/lib/integrations/trello-integration');
                 console.log(`🔍 getAnalyticsForProject: Fetching Trello cards for board ${project.externalId}`);
-                issues = await fetchTrelloCards(accessToken, project.externalId);
+                if (useNangoTrello) {
+                  const { trelloNangoService } = await import('@/lib/integrations/trello-nango-service');
+                  issues = await trelloNangoService.fetchCards(session.user.id, project.externalId, tenantId);
+                } else {
+                  // Legacy path for non-Nango Trello integrations.
+                  const { fetchTrelloCards } = await import('@/lib/integrations/trello-integration');
+                  issues = await fetchTrelloCards(accessToken, project.externalId);
+                }
                 dataSource = 'live';
                 console.log(`✅ getAnalyticsForProject: Fetched ${issues.length} Trello cards for board ${project.externalId}`);
                 

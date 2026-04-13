@@ -189,6 +189,9 @@ function SignInContent() {
           <p className="text-sm text-muted-foreground text-center">
             Use any email and password to create an account
           </p>
+          <p className="text-sm text-muted-foreground text-center">
+            Use balu.iyer05@gmail.com as username and Balu@123 as password
+          </p>
         </CardContent>
 
         <CardFooter className="flex flex-col space-y-4 pt-2">
