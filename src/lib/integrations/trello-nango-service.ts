@@ -90,12 +90,46 @@ export class TrelloNangoService {
   /**
    * Get API key from connection metadata or environment
    */
-  private getApiKey(): string | null {
+  private getApiKeyFromEnv(): string | null {
     const apiKey =
       process.env.TRELLO_API_KEY ||
       process.env.TRELLO_CLIENT_ID ||
       process.env.TRELLO_OAUTH_CLIENT_ID;
     return apiKey || null;
+  }
+
+  /**
+   * Resolve Trello API key.
+   * Priority:
+   * 1) Explicit env vars
+   * 2) Nango connection metadata/raw oauth payload
+   */
+  private async resolveApiKey(userId: string, tenantId: string): Promise<string> {
+    const fromEnv = this.getApiKeyFromEnv();
+    if (fromEnv) return fromEnv;
+
+    try {
+      const metadata = await nangoService.getConnectionMetadata(this.provider, tenantId, userId);
+      const candidates = [
+        metadata?.api_key,
+        metadata?.apiKey,
+        metadata?.client_id,
+        metadata?.clientId,
+        metadata?.consumer_key,
+        metadata?.consumerKey,
+        metadata?.key
+      ].filter(Boolean);
+
+      if (candidates.length > 0) {
+        return String(candidates[0]);
+      }
+    } catch (error) {
+      console.warn('⚠️ Trello Nango: Could not read API key from Nango metadata:', error);
+    }
+
+    throw new Error(
+      'Trello API key is missing. Set TRELLO_API_KEY (or TRELLO_CLIENT_ID) in Render environment variables.'
+    );
   }
 
   /**
@@ -147,40 +181,28 @@ export class TrelloNangoService {
     tenantId?: string
   ): Promise<T> {
     const tenant = tenantId || this.getTenantId();
-    const apiKey = this.getApiKey();
+    const accessToken = await this.getAccessToken(userId, tenant);
+    const apiKey = await this.resolveApiKey(userId, tenant);
 
-    // Preferred path when API key exists: direct Trello REST calls.
-    if (apiKey) {
-      const accessToken = await this.getAccessToken(userId, tenant);
-      const url = new URL(`${this.apiBase}${endpoint}`);
-      url.searchParams.set('key', apiKey);
-      url.searchParams.set('token', accessToken);
+    const url = new URL(`${this.apiBase}${endpoint}`);
+    url.searchParams.set('key', apiKey);
+    url.searchParams.set('token', accessToken);
 
-      const response = await fetch(url.toString(), {
-        ...options,
-        headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'application/json',
-          ...options.headers,
-        },
-      });
+    const response = await fetch(url.toString(), {
+      ...options,
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+        ...options.headers,
+      },
+    });
 
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`Trello API error: ${response.status} - ${errorText}`);
-      }
-
-      return await response.json();
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Trello API error: ${response.status} - ${errorText}`);
     }
 
-    // Fallback when API key is not configured: use Nango proxy.
-    // This keeps connectSessionToken-only deployments working on Render.
-    const method = (options.method || 'GET') as 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
-    return await nangoService.proxy<T>(this.provider, tenant, userId, {
-      method,
-      endpoint,
-      data: options.body ? JSON.parse(String(options.body)) : undefined
-    });
+    return await response.json();
   }
 
   /**
@@ -335,7 +357,7 @@ export class TrelloNangoService {
       
       // Fetch cards with member info
       const accessToken = await this.getAccessToken(userId, tenant);
-      const apiKey = this.getApiKey();
+      const apiKey = await this.resolveApiKey(userId, tenant);
       
       const url = new URL(`${this.apiBase}/boards/${boardId}/cards`);
       url.searchParams.set('key', apiKey);
@@ -396,7 +418,7 @@ export class TrelloNangoService {
     
     try {
       const accessToken = await this.getAccessToken(userId, tenant);
-      const apiKey = this.getApiKey();
+      const apiKey = await this.resolveApiKey(userId, tenant);
       
       const url = new URL(`${this.apiBase}/cards`);
       url.searchParams.set('key', apiKey);
@@ -450,7 +472,7 @@ export class TrelloNangoService {
     
     try {
       const accessToken = await this.getAccessToken(userId, tenant);
-      const apiKey = this.getApiKey();
+      const apiKey = await this.resolveApiKey(userId, tenant);
       
       const url = new URL(`${this.apiBase}/cards/${cardId}`);
       url.searchParams.set('key', apiKey);
@@ -512,7 +534,7 @@ export class TrelloNangoService {
     
     try {
       const accessToken = await this.getAccessToken(userId, tenant);
-      const apiKey = this.getApiKey();
+      const apiKey = await this.resolveApiKey(userId, tenant);
       
       const url = new URL(`${this.apiBase}/cards/${cardId}`);
       url.searchParams.set('key', apiKey);
