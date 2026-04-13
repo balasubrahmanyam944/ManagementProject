@@ -98,16 +98,38 @@ export class TrelloNangoService {
     return apiKey || null;
   }
 
+  private cachedApiKey: string | null = null;
+
   /**
    * Resolve Trello API key.
    * Priority:
-   * 1) Explicit env vars
-   * 2) Nango connection metadata/raw oauth payload
+   * 1) Explicit env vars (TRELLO_API_KEY, TRELLO_CLIENT_ID, TRELLO_OAUTH_CLIENT_ID)
+   * 2) Nango provider config (oauth_client_id set in Nango dashboard)
+   * 3) Nango connection metadata/raw oauth payload
    */
   private async resolveApiKey(userId: string, tenantId: string): Promise<string> {
-    const fromEnv = this.getApiKeyFromEnv();
-    if (fromEnv) return fromEnv;
+    if (this.cachedApiKey) return this.cachedApiKey;
 
+    const fromEnv = this.getApiKeyFromEnv();
+    if (fromEnv) {
+      this.cachedApiKey = fromEnv;
+      return fromEnv;
+    }
+
+    // Fetch from Nango provider config (contains the oauth_client_id / consumer key)
+    try {
+      const config = await nangoService.getProviderConfig(this.provider);
+      const configKey = config?.oauth_client_id || config?.app_id || config?.client_id;
+      if (configKey) {
+        console.log('✅ Trello Nango: Resolved API key from Nango provider config');
+        this.cachedApiKey = String(configKey);
+        return this.cachedApiKey;
+      }
+    } catch (error) {
+      console.warn('⚠️ Trello Nango: Could not read API key from Nango provider config:', error);
+    }
+
+    // Fallback: connection metadata
     try {
       const metadata = await nangoService.getConnectionMetadata(this.provider, tenantId, userId);
       const candidates = [
@@ -121,14 +143,17 @@ export class TrelloNangoService {
       ].filter(Boolean);
 
       if (candidates.length > 0) {
-        return String(candidates[0]);
+        console.log('✅ Trello Nango: Resolved API key from Nango connection metadata');
+        this.cachedApiKey = String(candidates[0]);
+        return this.cachedApiKey;
       }
     } catch (error) {
-      console.warn('⚠️ Trello Nango: Could not read API key from Nango metadata:', error);
+      console.warn('⚠️ Trello Nango: Could not read API key from Nango connection metadata:', error);
     }
 
     throw new Error(
-      'Trello API key is missing. Set TRELLO_API_KEY (or TRELLO_CLIENT_ID) in Render environment variables.'
+      'Trello API key is missing. Set TRELLO_API_KEY (or TRELLO_CLIENT_ID) in Render environment variables, ' +
+      'or ensure your Nango Trello integration has oauth_client_id configured.'
     );
   }
 

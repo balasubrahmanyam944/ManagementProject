@@ -675,6 +675,19 @@ class NangoService {
   }
 
   /**
+   * Get the provider/integration config from Nango.
+   * Useful for retrieving oauth_client_id (e.g. Trello API key).
+   */
+  async getProviderConfig(provider: NangoProvider): Promise<Record<string, any>> {
+    try {
+      return await this.httpRequest<Record<string, any>>('GET', `/config/${provider}`);
+    } catch (error) {
+      console.warn(`⚠️ Nango: Failed to fetch provider config for ${provider}:`, error);
+      return {};
+    }
+  }
+
+  /**
    * Get the OAuth connection URL for frontend
    * Note: For self-hosted Nango with proxy callback, the frontend SDK handles this
    */
