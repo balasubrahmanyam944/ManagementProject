@@ -90,19 +90,12 @@ export class TrelloNangoService {
   /**
    * Get API key from connection metadata or environment
    */
-  private getApiKey(): string {
+  private getApiKey(): string | null {
     const apiKey =
       process.env.TRELLO_API_KEY ||
       process.env.TRELLO_CLIENT_ID ||
       process.env.TRELLO_OAUTH_CLIENT_ID;
-
-    if (!apiKey) {
-      throw new Error(
-        'Trello API key is missing. Set TRELLO_API_KEY (or TRELLO_CLIENT_ID) in Render environment variables.'
-      );
-    }
-
-    return apiKey;
+    return apiKey || null;
   }
 
   /**
@@ -154,29 +147,40 @@ export class TrelloNangoService {
     tenantId?: string
   ): Promise<T> {
     const tenant = tenantId || this.getTenantId();
-    const accessToken = await this.getAccessToken(userId, tenant);
     const apiKey = this.getApiKey();
-    
-    // Build URL with auth params
-    const url = new URL(`${this.apiBase}${endpoint}`);
-    url.searchParams.set('key', apiKey);
-    url.searchParams.set('token', accessToken);
-    
-    const response = await fetch(url.toString(), {
-      ...options,
-      headers: {
-        'Accept': 'application/json',
-        'Content-Type': 'application/json',
-        ...options.headers,
-      },
-    });
-    
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`Trello API error: ${response.status} - ${errorText}`);
+
+    // Preferred path when API key exists: direct Trello REST calls.
+    if (apiKey) {
+      const accessToken = await this.getAccessToken(userId, tenant);
+      const url = new URL(`${this.apiBase}${endpoint}`);
+      url.searchParams.set('key', apiKey);
+      url.searchParams.set('token', accessToken);
+
+      const response = await fetch(url.toString(), {
+        ...options,
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+          ...options.headers,
+        },
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Trello API error: ${response.status} - ${errorText}`);
+      }
+
+      return await response.json();
     }
-    
-    return await response.json();
+
+    // Fallback when API key is not configured: use Nango proxy.
+    // This keeps connectSessionToken-only deployments working on Render.
+    const method = (options.method || 'GET') as 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
+    return await nangoService.proxy<T>(this.provider, tenant, userId, {
+      method,
+      endpoint,
+      data: options.body ? JSON.parse(String(options.body)) : undefined
+    });
   }
 
   /**
