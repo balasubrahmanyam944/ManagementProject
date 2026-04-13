@@ -675,16 +675,38 @@ class NangoService {
   }
 
   /**
-   * Get the provider/integration config from Nango.
-   * Useful for retrieving oauth_client_id (e.g. Trello API key).
+   * Integration unique key as configured in Nango (often same as provider id, e.g. "trello").
+   */
+  getIntegrationUniqueKey(provider: NangoProvider): string {
+    const fromEnv =
+      process.env[`NANGO_INTEGRATION_ID_${provider.toUpperCase()}`] ||
+      process.env[`NANGO_${provider.toUpperCase()}_INTEGRATION_ID`];
+    return fromEnv || provider;
+  }
+
+  /**
+   * Nango Cloud: GET /integrations/{uniqueKey}?include=credentials — returns OAuth app client_id (Trello API key).
+   * Self-hosted fallback: GET /config/{provider}
    */
   async getProviderConfig(provider: NangoProvider): Promise<Record<string, any>> {
-    try {
-      return await this.httpRequest<Record<string, any>>('GET', `/config/${provider}`);
-    } catch (error) {
-      console.warn(`⚠️ Nango: Failed to fetch provider config for ${provider}:`, error);
-      return {};
+    const uniqueKey = this.getIntegrationUniqueKey(provider);
+    const paths = [
+      `/integrations/${encodeURIComponent(uniqueKey)}?include=credentials`,
+      `/integrations/${encodeURIComponent(uniqueKey)}?include[]=credentials`,
+      `/config/${provider}`,
+    ];
+    for (const path of paths) {
+      try {
+        const json = await this.httpRequest<any>('GET', path);
+        if (json && (json.data || json.credentials || json.oauth_client_id)) {
+          return json;
+        }
+      } catch {
+        // try next path
+      }
     }
+    console.warn(`⚠️ Nango: Failed to fetch integration config for ${provider} (${uniqueKey})`);
+    return {};
   }
 
   /**

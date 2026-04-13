@@ -466,6 +466,57 @@ export async function GET(request: NextRequest) {
           }
           
           if (type === 'JIRA') {
+            const integrationIdStr = project.integrationId?.toString() || '';
+            const isNangoJiraProject = integrationIdStr.startsWith('nango_jira_');
+
+            if (isNangoJiraProject && project.key) {
+              try {
+                const { jiraNangoService } = await import('@/lib/integrations/jira-nango-service');
+                const jiraIssues = await jiraNangoService.fetchProjectIssues(
+                  session!.user.id,
+                  project.key,
+                  tenantId,
+                  100
+                );
+                issues = jiraIssues.map((j) => ({
+                  fields: {
+                    status: j.status,
+                    issuetype: j.issuetype,
+                  },
+                  status: j.status,
+                  issuetype: j.issuetype,
+                }));
+                dataSource = 'live';
+                console.log(`✅ getAnalyticsForProject: (Nango Jira) Fetched ${issues.length} issues for ${project.key}`);
+
+                const { statusCounts, typeCounts } = computeStatusTypeCounts(issues);
+                const freshAnalytics = {
+                  totalIssues: issues.length,
+                  openIssues: issues.filter(i => {
+                    const status = getIssueStatus(i);
+                    return !status.toLowerCase().includes('done') && !status.toLowerCase().includes('complete') && !status.toLowerCase().includes('closed');
+                  }).length,
+                  inProgressIssues: issues.filter(i => {
+                    const status = getIssueStatus(i);
+                    return status.toLowerCase().includes('progress') || status.toLowerCase().includes('doing') || status.toLowerCase().includes('review');
+                  }).length,
+                  doneIssues: issues.filter(i => {
+                    const status = getIssueStatus(i);
+                    return status.toLowerCase().includes('done') || status.toLowerCase().includes('complete') || status.toLowerCase().includes('closed');
+                  }).length,
+                  statusCounts,
+                  typeCounts,
+                  dataSource: 'live' as const,
+                  lastUpdated: new Date().toISOString()
+                };
+                await db.updateProject(project._id.toString(), {
+                  lastSyncAt: new Date(),
+                  analytics: freshAnalytics
+                });
+              } catch (apiError) {
+                console.error(`Error fetching Jira issues (Nango) for project ${project.key}:`, apiError);
+              }
+            } else {
             const integration = integrations.find((i: any) => i._id.toString() === project.integrationId.toString());
             if (integration && integration.status === 'CONNECTED') {
               try {
@@ -535,17 +586,19 @@ export async function GET(request: NextRequest) {
             } else {
               console.error(`❌ getAnalyticsForProject: Jira integration not found or not connected for project ${project.name}`);
             }
+            }
           } else if (type === 'TRELLO') {
-            // For Trello, fetch cards for the board
+            const integrationIdStr = project.integrationId?.toString() || '';
+            const isNangoTrelloProject = integrationIdStr.startsWith('nango_trello_');
             const integration = integrations.find((i: any) => i._id.toString() === project.integrationId.toString());
-            if (integration && integration.status === 'CONNECTED') {
+            const useNangoTrello = isNangoTrelloProject || integration?.metadata?.nangoManaged;
+
+            if (useNangoTrello || (integration && integration.status === 'CONNECTED')) {
               try {
-                // Get access token (handles both Nango and DB tokens)
-                let accessToken = integration.accessToken;
-                if (integration.metadata?.nangoManaged) {
-                  const integrationTenantId = integration.metadata.tenantId || 'default';
-                  const { nangoService } = await import('@/lib/integrations/nango-service');
-                  accessToken = await nangoService.getAccessToken('trello', integrationTenantId, session!.user.id);
+                let accessToken: string | undefined = integration?.accessToken;
+                if (useNangoTrello) {
+                  const { nangoService: ns } = await import('@/lib/integrations/nango-service');
+                  accessToken = await ns.getAccessToken('trello', tenantId, session!.user.id);
                 }
                 
                 if (!accessToken) {

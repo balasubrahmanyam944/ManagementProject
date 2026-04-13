@@ -116,17 +116,26 @@ export class TrelloNangoService {
       return fromEnv;
     }
 
-    // Fetch from Nango provider config (contains the oauth_client_id / consumer key)
+    // Nango Cloud: GET /integrations/{uniqueKey}?include=credentials → data.credentials.client_id (Trello consumer key)
     try {
       const config = await nangoService.getProviderConfig(this.provider);
-      const configKey = config?.oauth_client_id || config?.app_id || config?.client_id;
+      const creds =
+        config?.data?.credentials ||
+        config?.credentials ||
+        (config?.data && typeof config.data === 'object' ? (config.data as any).oauth : null);
+      const configKey =
+        creds?.client_id ||
+        creds?.clientId ||
+        config?.oauth_client_id ||
+        config?.app_id ||
+        config?.client_id;
       if (configKey) {
-        console.log('✅ Trello Nango: Resolved API key from Nango provider config');
+        console.log('✅ Trello Nango: Resolved API key from Nango integration config');
         this.cachedApiKey = String(configKey);
         return this.cachedApiKey;
       }
     } catch (error) {
-      console.warn('⚠️ Trello Nango: Could not read API key from Nango provider config:', error);
+      console.warn('⚠️ Trello Nango: Could not read API key from Nango integration config:', error);
     }
 
     // Fallback: connection metadata
