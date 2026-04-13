@@ -457,8 +457,15 @@ export async function GET(request: NextRequest) {
       console.log(`🔍 getAnalyticsForProject: Project lastSyncAt: ${project.lastSyncAt}, isDataStale: ${isDataStale(project.lastSyncAt)}, forceRefresh: ${forceRefresh}`);
       
       try {
-        // Only fetch fresh data if the project data is stale, doesn't exist, or forceRefresh is true
-        if (forceRefresh || isDataStale(project.lastSyncAt)) {
+        // For Trello boards, recover quickly from stale "0 cards" cache entries.
+        const trelloNeedsRecoveryRefresh =
+          type === 'TRELLO' &&
+          ((analytics?.totalIssues ?? 0) === 0) &&
+          isDataStale(project.lastSyncAt);
+
+        // Only fetch fresh data if project data is stale, forceRefresh is true,
+        // or Trello cached analytics appears stuck at zero.
+        if (forceRefresh || isDataStale(project.lastSyncAt) || trelloNeedsRecoveryRefresh) {
           if (forceRefresh) {
             console.log(`🔄 getAnalyticsForProject: forceRefresh=true, fetching fresh data for ${type} project ${project.name}`);
           } else {
