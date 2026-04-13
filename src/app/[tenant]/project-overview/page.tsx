@@ -21,7 +21,6 @@ export default function ProjectOverviewPage() {
   const [refreshing, setRefreshing] = useState(false);
   const [initialLoad, setInitialLoad] = useState(true);
   const [lastRefreshTime, setLastRefreshTime] = useState<Date | null>(null);
-  const [autoRefreshAttempted, setAutoRefreshAttempted] = useState(false);
   const [refreshingAnalytics, setRefreshingAnalytics] = useState(false);
   const [fixingProject, setFixingProject] = useState<string | null>(null);
   const { toast } = useToast();
@@ -30,11 +29,10 @@ export default function ProjectOverviewPage() {
   // Webhook status for live indicator
   const { connected: webhookConnected, hasRecentActivity } = useWebhookStatus();
   
-  // Start Jira polling for automatic change detection (detects changes from ANY user)
-  useJiraPolling(true);
-  
-  // Start Trello polling for automatic change detection (detects changes from ANY user)
-  useTrelloPolling(true);
+  // Disable background polling on overview to avoid Nango API rate limits.
+  // Webhooks + manual refresh still keep data up to date.
+  useJiraPolling(false);
+  useTrelloPolling(false);
   
   // Callback for auto-refresh
   const handleWebhookRefresh = useCallback(async () => {
@@ -61,12 +59,12 @@ export default function ProjectOverviewPage() {
     setLastRefreshTime(new Date());
   }, [invalidateCache, fetchIntegrations]);
   
-  // Auto-refresh when webhook events are received
+  // Disable webhook-driven auto-refresh; keep manual refresh only.
   const { refreshing: webhookRefreshing, hasActivity } = useAutoRefresh({
     integrationTypes: ['JIRA', 'TRELLO', 'TESTRAIL'],
     onRefresh: handleWebhookRefresh,
     debounceMs: 2000,
-    enabled: true,
+    enabled: false,
   });
 
   const totalProjectCount = 
@@ -84,28 +82,6 @@ export default function ProjectOverviewPage() {
       setInitialLoad(false);
     }
   }, [loading, initialLoad, fetchIntegrations]);
-
-  useEffect(() => {
-    if (!loading && integrations && !initialLoad) {
-      const shouldAutoRefresh = (
-        (integrations.jira.connected && projects.jira.length === 0) ||
-        (integrations.trello.connected && projects.trello.length === 0)
-      );
-      
-      if (shouldAutoRefresh && !refreshing && !autoRefreshAttempted) {
-        setAutoRefreshAttempted(true);
-        setTimeout(() => {
-          handleRefresh();
-        }, 1000);
-      }
-
-      // Reset one-time guard once data appears (or integrations disconnect),
-      // so a future fresh connection can trigger one auto-refresh again.
-      if (!shouldAutoRefresh && autoRefreshAttempted) {
-        setAutoRefreshAttempted(false);
-      }
-    }
-  }, [integrations, projects, loading, initialLoad, refreshing, autoRefreshAttempted]);
 
   const getProjectGradient = (type: string) => {
     switch (type) {
