@@ -29,7 +29,26 @@ export async function POST(request: NextRequest) {
 			return NextResponse.json({ error: 'Slack not connected' }, { status: 400 })
 		}
 
-		const messages = await slackService.fetchRecentMessages(accessToken, channelId, Math.min(200, Number(limit) || 100))
+		let messages: any[] = []
+		try {
+			messages = await slackService.fetchRecentMessages(
+				accessToken,
+				channelId,
+				Math.min(200, Number(limit) || 100)
+			)
+		} catch (err: any) {
+			// Most common production failures are missing scopes or private-channel access.
+			const details = err?.message || 'Failed to fetch Slack messages'
+			console.error('❌ Slack analyze: Failed to fetch recent messages:', {
+				channelId,
+				limit,
+				details
+			})
+			return NextResponse.json(
+				{ success: false, error: `Failed to fetch Slack messages: ${details}` },
+				{ status: 400 }
+			)
+		}
 		const normalized = messages
 			.filter((m: any) => typeof m.text === 'string')
 			.map((m: any) => ({ ts: m.ts, text: m.text as string, user: m.user }))
