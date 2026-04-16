@@ -16,20 +16,27 @@ export default function SlackAnalyzeChannelPage() {
 	const [error, setError] = useState<string | null>(null);
 	const [resolvedId, setResolvedId] = useState<string | null>(null);
 
-	const resolveChannelId = async () => {
+	function getBasePath(): string {
+		if (typeof window !== 'undefined') {
+			const pathParts = window.location.pathname.split('/').filter(Boolean);
+			if (pathParts.length > 0) return `/${pathParts[0]}`;
+		}
+		return process.env.NEXT_PUBLIC_TENANT_BASEPATH || '';
+	}
+
+	const resolveChannelId = async (): Promise<string> => {
 		try {
-			// Use basePath for API calls
-			const basePath = process.env.NEXT_PUBLIC_TENANT_BASEPATH || '';
-			const res = await fetch(`${basePath}/api/integrations/status`);
+			const bp = getBasePath();
+			const res = await fetch(`${bp}/api/integrations/status?fast=1`);
 			if (!res.ok) throw new Error('Failed to load channels');
 			const data = await res.json();
 			const allSlack = (data.projects?.slack || []) as any[];
-			const byName = allSlack.find(p => (p.name || '').replace(/^#/, '') === channelDisplayName.replace(/^#/, ''));
-			if (byName) {
+			const cleanName = channelDisplayName.replace(/^#/, '');
+			const byName = allSlack.find((p: any) => (p.name || '').replace(/^#/, '') === cleanName);
+			if (byName?.externalId) {
 				setResolvedId(byName.externalId);
 				return byName.externalId as string;
 			}
-			// Fallback: if param looks like an ID, use it
 			setResolvedId(channelParam);
 			return channelParam;
 		} catch (e: any) {
@@ -39,20 +46,19 @@ export default function SlackAnalyzeChannelPage() {
 		}
 	};
 
-	const analyze = async () => {
+	const analyze = async (overrideId?: string) => {
 		setLoading(true);
 		setError(null);
 		try {
-			const id = resolvedId || await resolveChannelId();
-			// Use basePath for API calls
-			const basePath = process.env.NEXT_PUBLIC_TENANT_BASEPATH || '';
-			const resp = await fetch(`${basePath}/api/integrations/slack/analyze`, {
+			const id = overrideId || resolvedId || await resolveChannelId();
+			const bp = getBasePath();
+			const resp = await fetch(`${bp}/api/integrations/slack/analyze`, {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({ channelId: id }),
 			});
-			if (!resp.ok) throw new Error('Failed to analyze channel');
 			const data = await resp.json();
+			if (!resp.ok) throw new Error(data?.error || 'Failed to analyze channel');
 			setResult(data.analysis);
 		} catch (e: any) {
 			setError(e?.message || 'Analysis failed');
@@ -62,7 +68,10 @@ export default function SlackAnalyzeChannelPage() {
 	};
 
 	useEffect(() => {
-		resolveChannelId().then(() => analyze());
+		(async () => {
+			const id = await resolveChannelId();
+			await analyze(id);
+		})();
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [channelParam]);
 
