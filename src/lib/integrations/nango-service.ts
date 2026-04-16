@@ -475,12 +475,22 @@ class NangoService {
   ): Promise<string> {
     const connection = await this.getConnection('slack', tenantId, userId);
     const raw = connection.credentials?.raw;
+
+    console.log(`🔍 Nango Slack token debug:`, {
+      hasRaw: !!raw,
+      authedUserKeys: raw?.authed_user ? Object.keys(raw.authed_user) : 'none',
+      hasUserToken: !!raw?.authed_user?.access_token,
+      botScopes: raw?.scope || 'unknown',
+      userScopes: raw?.authed_user?.scope || 'none',
+      tokenType: raw?.token_type || 'unknown',
+    });
+
     const userToken = raw?.authed_user?.access_token;
     if (userToken) {
       console.log(`✅ Nango: Slack user token (xoxp) retrieved`);
       return userToken;
     }
-    console.log(`⚠️ Nango: No Slack user token found, falling back to bot token`);
+    console.log(`⚠️ Nango: No Slack user token found — add user scopes (channels:history, channels:read) to your Nango Slack integration, then reconnect Slack. Falling back to bot token.`);
     return this.getAccessToken('slack', tenantId, userId);
   }
 
