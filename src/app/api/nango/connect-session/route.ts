@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
-import { Nango } from '@nangohq/node';
 import { authConfig } from '@/lib/auth/config';
 import type { NangoProvider } from '@/lib/integrations/nango-service';
 
@@ -48,52 +47,72 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const serverUrl =
+    const nangoBaseUrl = (
       process.env.NANGO_SERVER_URL ||
       process.env.NEXT_PUBLIC_NANGO_SERVER_URL ||
-      'http://localhost:3003';
-
-    const nango = new Nango({
-      secretKey,
-      ...(serverUrl ? { host: serverUrl } : {}),
-    });
+      'https://api.nango.dev'
+    ).replace(/\/+$/, '');
 
     const integrationId = getIntegrationId(provider);
     console.log(`🔗 Nango Connect Session: provider=${provider}, integrationId=${integrationId}, tenant=${tenantId}`);
 
-    const connectSessionPayload: any = {
-      // Backward-compatible fields for older SDK/runtime combinations.
-      end_user: { id: userId },
-      organization: { id: tenantId },
-      // Preferred attribution fields (supported by newer Nango APIs).
-      tags: {
-        end_user_id: userId,
-        organization_id: tenantId,
-      },
-      allowed_integrations: [integrationId],
-    };
-
-    const { data } = await nango.createConnectSession(connectSessionPayload);
-
-    return NextResponse.json({
-      connectSessionToken: data.token,
-      expiresAt: data.expires_at,
-      connectLink: data.connect_link,
-    });
-  } catch (error: any) {
-    console.error('❌ Nango connect session error:', error);
-    const status = error?.response?.status || 500;
-    const upstreamMessage =
-      error?.response?.data?.error ||
-      error?.response?.data?.message ||
-      error?.message ||
-      'Failed to create connect session';
-    return NextResponse.json(
+    // Use direct HTTP to Nango API — bypasses SDK version quirks
+    const payloads = [
       {
-        error: upstreamMessage,
-        details: error?.response?.data || null
+        tags: { end_user_id: userId, organization_id: tenantId },
+        allowed_integrations: [integrationId],
       },
-      { status }
+      {
+        end_user: { id: userId, display_name: userId },
+        organization: { id: tenantId, display_name: tenantId },
+        allowed_integrations: [integrationId],
+      },
+      {
+        allowed_integrations: [integrationId],
+      },
+    ];
+
+    let lastError: string = 'Unknown error';
+    for (const payload of payloads) {
+      try {
+        console.log(`🔗 Nango: Trying POST /connect/sessions with:`, JSON.stringify(payload));
+        const resp = await fetch(`${nangoBaseUrl}/connect/sessions`, {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${secretKey}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(payload),
+        });
+
+        const body = await resp.json();
+
+        if (resp.ok && body?.data?.token) {
+          console.log(`✅ Nango: Connect session created successfully`);
+          return NextResponse.json({
+            connectSessionToken: body.data.token,
+            expiresAt: body.data.expires_at,
+            connectLink: body.data.connect_link,
+          });
+        }
+
+        lastError = JSON.stringify(body?.error || body);
+        console.warn(`⚠️ Nango: Attempt failed (${resp.status}):`, lastError);
+      } catch (err: any) {
+        lastError = err?.message || String(err);
+        console.warn(`⚠️ Nango: Attempt threw:`, lastError);
+      }
+    }
+
+    return NextResponse.json(
+      { error: `Nango rejected connect session: ${lastError}` },
+      { status: 400 }
+    );
+  } catch (error: any) {
+    console.error('❌ Nango connect session error:', error?.message);
+    return NextResponse.json(
+      { error: error?.message || 'Failed to create connect session' },
+      { status: 500 }
     );
   }
 }
