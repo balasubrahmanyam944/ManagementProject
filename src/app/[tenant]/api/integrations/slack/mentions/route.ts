@@ -19,12 +19,24 @@ export async function GET(request: NextRequest) {
     if (channelId) {
       console.log('Fetching mentions for specific channel:', channelId)
       const integration = await slackService.getIntegration(session.user.id)
-      if (!integration || integration.status !== 'CONNECTED' || !integration.accessToken) {
+      if (!integration || integration.status !== 'CONNECTED') {
         console.error('Slack not connected for user:', session.user.id)
         return NextResponse.json({ error: 'Slack not connected' }, { status: 400 })
       }
 
-      const connectedUser = await slackService.fetchConnectedUser(integration.accessToken, integration)
+      if (!integration.accessToken && !integration.metadata?.nangoManaged) {
+        console.error('Slack not connected (no token) for user:', session.user.id)
+        return NextResponse.json({ error: 'Slack not connected' }, { status: 400 })
+      }
+
+      let accessToken = integration.accessToken
+      if (integration.metadata?.nangoManaged) {
+        const { nangoService } = await import('@/lib/integrations/nango-service')
+        const tenantId = integration.metadata.tenantId || 'default'
+        accessToken = await nangoService.getAccessToken('slack', tenantId, session.user.id)
+      }
+
+      const connectedUser = await slackService.fetchConnectedUser(accessToken!, integration)
       console.log('Connected user for single channel check:', connectedUser?.id, connectedUser?.name)
       
       if (!connectedUser) {
@@ -35,7 +47,7 @@ export async function GET(request: NextRequest) {
       }
 
       const mentions = await slackService.checkUserMentionsInChannel(
-        integration.accessToken,
+        accessToken!,
         channelId,
         connectedUser.id,
         100,

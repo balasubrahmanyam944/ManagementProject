@@ -159,8 +159,33 @@ class SlackServiceImpl {
 		const resp = await fetch(url.toString(), { headers: { Authorization: `Bearer ${accessToken}` } })
 		if (!resp.ok) throw new Error('Failed to fetch Slack messages')
 		const data = await resp.json()
+
+		if (!data.ok && data.error === 'not_in_channel') {
+			await this.joinChannel(accessToken, channelId)
+			const retry = await fetch(url.toString(), { headers: { Authorization: `Bearer ${accessToken}` } })
+			if (!retry.ok) throw new Error('Failed to fetch Slack messages after join')
+			const retryData = await retry.json()
+			if (!retryData.ok) throw new Error(retryData.error || 'Slack API error after join')
+			return retryData.messages || []
+		}
+
 		if (!data.ok) throw new Error(data.error || 'Slack API error')
 		return data.messages || []
+	}
+
+	private async joinChannel(accessToken: string, channelId: string): Promise<void> {
+		const resp = await fetch('https://slack.com/api/conversations.join', {
+			method: 'POST',
+			headers: {
+				Authorization: `Bearer ${accessToken}`,
+				'Content-Type': 'application/json',
+			},
+			body: JSON.stringify({ channel: channelId }),
+		})
+		const data = await resp.json()
+		if (!data.ok && data.error !== 'already_in_channel') {
+			console.warn(`⚠️ Slack: Could not join channel ${channelId}: ${data.error}`)
+		}
 	}
 
 	/**

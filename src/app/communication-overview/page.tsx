@@ -22,7 +22,13 @@ export default function CommunicationOverviewPage() {
   const { toast } = useToast();
   const router = useRouter();
 
-  const basePath = process.env.NEXT_PUBLIC_TENANT_BASEPATH || '';
+  function getBasePath(): string {
+    if (typeof window !== 'undefined') {
+      const pathParts = window.location.pathname.split('/').filter(Boolean);
+      if (pathParts.length > 0) return `/${pathParts[0]}`;
+    }
+    return process.env.NEXT_PUBLIC_TENANT_BASEPATH || '';
+  }
 
   useEffect(() => {
     if (initialLoad && !loading) {
@@ -36,7 +42,8 @@ export default function CommunicationOverviewPage() {
       if (projects.slack && projects.slack.length > 0 && integrations?.slack?.connected) {
         setLoadingMentions(true);
         try {
-          const response = await fetch(`${basePath}/api/integrations/slack/mentions`);
+          const bp = getBasePath();
+          const response = await fetch(`${bp}/api/integrations/slack/mentions`);
           if (response.ok) {
             const data = await response.json();
             if (data.mentionsMap) {
@@ -52,7 +59,7 @@ export default function CommunicationOverviewPage() {
     };
 
     fetchMentions();
-  }, [projects.slack, integrations?.slack?.connected, basePath]);
+  }, [projects.slack, integrations?.slack?.connected]);
 
   const getChannelLink = (channel: Project) => {
     const channelPath = channel.name || `#${channel.externalId}`;
@@ -90,7 +97,8 @@ export default function CommunicationOverviewPage() {
   };
 
   const handleAnalyzeMentions = (channelId: string, userId: string) => {
-    router.push(`${basePath}/integrations/slack/mentions-analysis?channel=${channelId}&user=${userId}`);
+    const bp = getBasePath();
+    router.push(`${bp}/integrations/slack/mentions-analysis?channel=${channelId}&user=${userId}`);
   };
 
   const renderChannels = (channels: Project[]) => {
