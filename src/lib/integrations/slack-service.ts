@@ -83,18 +83,33 @@ class SlackServiceImpl {
 	}
 
 	/**
-	 * Get access token - from Nango if managed, otherwise from DB
+	 * Get access token - from Nango if managed, otherwise from DB.
+	 * Returns the bot token (xoxb) — good for listing channels, posting, etc.
 	 */
 	private async getAccessToken(integration: Integration): Promise<string> {
-		// If Nango-managed, get token from Nango
 		if (integration.metadata?.nangoManaged) {
 			const tenantId = integration.metadata.tenantId || 'default'
 			const userId = integration.userId.toString()
 			console.log('🔑 SlackService: Getting access token from Nango')
 			return await nangoService.getAccessToken('slack', tenantId, userId)
 		}
-		
-		// Otherwise use DB token
+		if (!integration.accessToken) {
+			throw new Error('No Slack access token available')
+		}
+		return integration.accessToken
+	}
+
+	/**
+	 * Get a user-level token (xoxp) that has channels:history scope.
+	 * Falls back to the bot token if a user token isn't available.
+	 */
+	private async getUserToken(integration: Integration): Promise<string> {
+		if (integration.metadata?.nangoManaged) {
+			const tenantId = integration.metadata.tenantId || 'default'
+			const userId = integration.userId.toString()
+			console.log('🔑 SlackService: Getting user token from Nango for message reading')
+			return await nangoService.getSlackUserToken(tenantId, userId)
+		}
 		if (!integration.accessToken) {
 			throw new Error('No Slack access token available')
 		}
@@ -351,35 +366,32 @@ class SlackServiceImpl {
 			throw new Error('Slack integration not connected')
 		}
 
-		// Get access token (handles both Nango and DB tokens)
-		const accessToken = await this.getAccessToken(integration)
+		const botToken = await this.getAccessToken(integration)
+		const userToken = await this.getUserToken(integration)
+
 		console.log('Fetching channels for mention check...')
-		const channels = await this.fetchChannelsFromSlack(accessToken)
+		const channels = await this.fetchChannelsFromSlack(botToken)
 		console.log(`Found ${channels.length} channels`)
-		
-		// Pass integration to get user ID from stored metadata
-		const connectedUser = await this.fetchConnectedUser(accessToken, integration)
+
+		const connectedUser = await this.fetchConnectedUser(userToken, integration)
 		console.log('Connected user:', connectedUser ? `${connectedUser.name} (${connectedUser.id})` : 'null')
 		
 		if (!connectedUser) {
 			console.error('Could not fetch connected user, returning channels without mention info')
-			// Return channels without mention info if we can't get the user
 			return channels.filter(c => !c.is_archived).map(ch => ({
 				...ch,
 				mentions: { mentioned: false }
 			}))
 		}
 
-		// Check mentions for each channel (in parallel)
-		// Increase limit to check more messages
 		const channelsWithMentions = await Promise.all(
 			channels.filter(c => !c.is_archived).map(async (ch) => {
 				try {
 					const mentions = await this.checkUserMentionsInChannel(
-						accessToken,
+						userToken,
 						ch.id,
 						connectedUser.id,
-						100, // Check last 100 messages per channel
+						100,
 						connectedUser
 					)
 					return { ...ch, mentions }

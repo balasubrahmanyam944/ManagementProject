@@ -29,11 +29,12 @@ export async function GET(request: NextRequest) {
         return NextResponse.json({ error: 'Slack not connected' }, { status: 400 })
       }
 
+      // Use user token (xoxp) for reading messages — bot tokens lack channels:history
       let accessToken = integration.accessToken
       if (integration.metadata?.nangoManaged) {
         const { nangoService } = await import('@/lib/integrations/nango-service')
         const tenantId = integration.metadata.tenantId || 'default'
-        accessToken = await nangoService.getAccessToken('slack', tenantId, session.user.id)
+        accessToken = await nangoService.getSlackUserToken(tenantId, session.user.id)
       }
 
       const connectedUser = await slackService.fetchConnectedUser(accessToken!, integration)

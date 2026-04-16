@@ -466,6 +466,25 @@ class NangoService {
   }
 
   /**
+   * For Slack: retrieve the authed_user token (xoxp-...) which has user-level
+   * scopes like channels:history.  Falls back to the bot token if unavailable.
+   */
+  async getSlackUserToken(
+    tenantId: string,
+    userId: string
+  ): Promise<string> {
+    const connection = await this.getConnection('slack', tenantId, userId);
+    const raw = connection.credentials?.raw;
+    const userToken = raw?.authed_user?.access_token;
+    if (userToken) {
+      console.log(`✅ Nango: Slack user token (xoxp) retrieved`);
+      return userToken;
+    }
+    console.log(`⚠️ Nango: No Slack user token found, falling back to bot token`);
+    return this.getAccessToken('slack', tenantId, userId);
+  }
+
+  /**
    * Get connection metadata (e.g., Jira cloudId, Slack teamId)
    */
   async getConnectionMetadata(
